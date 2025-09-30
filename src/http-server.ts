@@ -119,7 +119,7 @@ class GHLMCPHttpServer {
     this.app.use(cors({
       origin: '*',
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-GHL-API-Key', 'X-GHL-Location-ID', 'X-GHL-Base-URL'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-GHL-Base-URL'],
       credentials: false
     }));
 
@@ -160,6 +160,36 @@ class GHLMCPHttpServer {
     console.log(`[GHL MCP HTTP] Location ID: ${config.locationId}`);
 
     return new GHLApiClient(config);
+  }
+
+  /**
+   * Decode JWT token to extract location ID from authClassId
+   */
+  private decodeLocationIdFromToken(token: string): string {
+    try {
+      // Remove Bearer prefix if present
+      const jwt = token.replace('Bearer ', '');
+
+      // Split the JWT into parts
+      const parts = jwt.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+
+      // Decode the payload (second part)
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+
+      // Extract location ID from authClassId
+      const locationId = payload.authClassId;
+      if (!locationId) {
+        throw new Error('authClassId not found in token payload');
+      }
+
+      return locationId;
+    } catch (error) {
+      console.error('[GHL MCP] Error decoding JWT token:', error);
+      throw new Error('Failed to decode location ID from token');
+    }
   }
 
   /**
@@ -513,28 +543,25 @@ class GHLMCPHttpServer {
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
 
       try {
-        // Extract GHL credentials from headers for per-user authentication
-        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
-        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        // Extract GHL credentials from Authorization header
+        const authHeader = req.headers['authorization'] as string;
         const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
-        
-        if (!ghlApiKey) {
-          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+
+        if (!authHeader) {
+          console.error(`[${client} MCP] Missing Authorization header for session: ${sessionId}`);
           if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+            res.status(400).json({ error: 'Authorization header is required' });
           }
           return;
         }
 
-        if (!ghlLocationId) {
-          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
-          if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
-          }
-          return;
-        }
+        console.log(`[${client} MCP] Decoding location ID from token for session: ${sessionId}`);
 
-        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+        // Extract API key and decode location ID from JWT token
+        const ghlApiKey = authHeader.replace('Bearer ', '');
+        const ghlLocationId = this.decodeLocationIdFromToken(authHeader);
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}, location: ${ghlLocationId}`);
 
         // Create a new GHL client instance for this connection
         const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
@@ -586,28 +613,25 @@ class GHLMCPHttpServer {
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
 
       try {
-        // Extract GHL credentials from headers for per-user authentication
-        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
-        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        // Extract GHL credentials from Authorization header
+        const authHeader = req.headers['authorization'] as string;
         const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
 
-        if (!ghlApiKey) {
-          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+        if (!authHeader) {
+          console.error(`[${client} MCP] Missing Authorization header for session: ${sessionId}`);
           if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+            res.status(400).json({ error: 'Authorization header is required' });
           }
           return;
         }
 
-        if (!ghlLocationId) {
-          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
-          if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
-          }
-          return;
-        }
+        console.log(`[${client} MCP] Decoding location ID from token for session: ${sessionId}`);
 
-        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+        // Extract API key and decode location ID from JWT token
+        const ghlApiKey = authHeader.replace('Bearer ', '');
+        const ghlLocationId = this.decodeLocationIdFromToken(authHeader);
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}, location: ${ghlLocationId}`);
 
         // Create a new GHL client instance for this connection
         const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
@@ -666,28 +690,25 @@ class GHLMCPHttpServer {
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
 
       try {
-        // Extract GHL credentials from headers for per-user authentication
-        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
-        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        // Extract GHL credentials from Authorization header
+        const authHeader = req.headers['authorization'] as string;
         const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
 
-        if (!ghlApiKey) {
-          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+        if (!authHeader) {
+          console.error(`[${client} MCP] Missing Authorization header for session: ${sessionId}`);
           if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+            res.status(400).json({ error: 'Authorization header is required' });
           }
           return;
         }
 
-        if (!ghlLocationId) {
-          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
-          if (!res.headersSent) {
-            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
-          }
-          return;
-        }
+        console.log(`[${client} MCP] Decoding location ID from token for session: ${sessionId}`);
 
-        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+        // Extract API key and decode location ID from JWT token
+        const ghlApiKey = authHeader.replace('Bearer ', '');
+        const ghlLocationId = this.decodeLocationIdFromToken(authHeader);
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}, location: ${ghlLocationId}`);
 
         // Create a new GHL client instance for this connection
         const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
