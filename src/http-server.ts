@@ -1683,7 +1683,7 @@ class GHLMCPHttpServer {
     
     try {
       // Test GHL API connection
-      await this.testGHLConnection();
+      // await this.testGHLConnection();
       
       // Start HTTP server
       this.app.listen(this.port, '0.0.0.0', () => {
