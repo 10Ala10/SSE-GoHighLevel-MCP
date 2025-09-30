@@ -44,24 +44,24 @@ dotenv.config();
 class GHLMCPHttpServer {
   private app: express.Application;
   private server: Server;
-  private ghlClient: GHLApiClient;
-  private contactTools: ContactTools;
-  private conversationTools: ConversationTools;
-  private blogTools: BlogTools;
-  private opportunityTools: OpportunityTools;
-  private calendarTools: CalendarTools;
-  private emailTools: EmailTools;
-  private locationTools: LocationTools;
-  private emailISVTools: EmailISVTools;
-  private socialMediaTools: SocialMediaTools;
-  private mediaTools: MediaTools;
-  private objectTools: ObjectTools;
-  private associationTools: AssociationTools;
-  private customFieldV2Tools: CustomFieldV2Tools;
-  private workflowTools: WorkflowTools;
-  private surveyTools: SurveyTools;
-  private storeTools: StoreTools;
-  private productsTools: ProductsTools;
+  // private ghlClient: GHLApiClient | null;
+  private contactTools: ContactTools | null;
+  private conversationTools: ConversationTools | null;
+  private blogTools: BlogTools | null;
+  private opportunityTools: OpportunityTools | null;
+  private calendarTools: CalendarTools | null;
+  private emailTools: EmailTools | null;
+  private locationTools: LocationTools | null;
+  private emailISVTools: EmailISVTools | null;
+  private socialMediaTools: SocialMediaTools | null;
+  private mediaTools: MediaTools | null;
+  private objectTools: ObjectTools | null;
+  private associationTools: AssociationTools | null;
+  private customFieldV2Tools: CustomFieldV2Tools | null;
+  private workflowTools: WorkflowTools | null;
+  private surveyTools: SurveyTools | null;
+  private storeTools: StoreTools | null;
+  private productsTools: ProductsTools | null;
   private port: number;
 
   constructor() {
@@ -84,30 +84,31 @@ class GHLMCPHttpServer {
       }
     );
 
-    // Initialize GHL API client
-    this.ghlClient = this.initializeGHLClient();
-    
-    // Initialize tools
-    this.contactTools = new ContactTools(this.ghlClient);
-    this.conversationTools = new ConversationTools(this.ghlClient);
-    this.blogTools = new BlogTools(this.ghlClient);
-    this.opportunityTools = new OpportunityTools(this.ghlClient);
-    this.calendarTools = new CalendarTools(this.ghlClient);
-    this.emailTools = new EmailTools(this.ghlClient);
-    this.locationTools = new LocationTools(this.ghlClient);
-    this.emailISVTools = new EmailISVTools(this.ghlClient);
-    this.socialMediaTools = new SocialMediaTools(this.ghlClient);
-    this.mediaTools = new MediaTools(this.ghlClient);
-    this.objectTools = new ObjectTools(this.ghlClient);
-    this.associationTools = new AssociationTools(this.ghlClient);
-    this.customFieldV2Tools = new CustomFieldV2Tools(this.ghlClient);
-    this.workflowTools = new WorkflowTools(this.ghlClient);
-    this.surveyTools = new SurveyTools(this.ghlClient);
-    this.storeTools = new StoreTools(this.ghlClient);
-    this.productsTools = new ProductsTools(this.ghlClient);
+    // NOTE: No longer using global GHL client - each user connection creates its own client from headers
+    // this.ghlClient = this.initializeGHLClient();
 
-    // Setup MCP handlers
-    this.setupMCPHandlers();
+    // NOTE: No longer using global tools - tools are created per-user in SSE handlers
+    // Initialize tools with null (deprecated)
+    this.contactTools = null;
+    this.conversationTools = null;
+    this.blogTools = null;
+    this.opportunityTools = null;
+    this.calendarTools = null;
+    this.emailTools = null;
+    this.locationTools = null;
+    this.emailISVTools = null;
+    this.socialMediaTools = null;
+    this.mediaTools = null;
+    this.objectTools = null;
+    this.associationTools = null;
+    this.customFieldV2Tools = null;
+    this.workflowTools = null;
+    this.surveyTools = null;
+    this.storeTools = null;
+    this.productsTools = null;
+
+    // NOTE: No longer setting up global MCP handlers - handlers are created per-user
+    // this.setupMCPHandlers();
     this.setupRoutes();
   }
 
@@ -135,31 +136,10 @@ class GHLMCPHttpServer {
 
   /**
    * Initialize GoHighLevel API client with configuration
+   * NOTE: Deprecated - GHL clients are now created per-user from headers
    */
   private initializeGHLClient(): GHLApiClient {
-    // Load configuration from environment
-    const config: GHLConfig = {
-      accessToken: process.env.GHL_API_KEY || '',
-      baseUrl: process.env.GHL_BASE_URL || 'https://services.leadconnectorhq.com',
-      version: '2021-07-28',
-      locationId: process.env.GHL_LOCATION_ID || ''
-    };
-
-    // Validate required configuration
-    if (!config.accessToken) {
-      throw new Error('GHL_API_KEY environment variable is required');
-    }
-
-    if (!config.locationId) {
-      throw new Error('GHL_LOCATION_ID environment variable is required');
-    }
-
-    console.log('[GHL MCP HTTP] Initializing GHL API client...');
-    console.log(`[GHL MCP HTTP] Base URL: ${config.baseUrl}`);
-    console.log(`[GHL MCP HTTP] Version: ${config.version}`);
-    console.log(`[GHL MCP HTTP] Location ID: ${config.locationId}`);
-
-    return new GHLApiClient(config);
+    throw new Error('Global GHL client initialization is deprecated. Use per-user clients via headers.');
   }
 
   /**
@@ -207,9 +187,9 @@ class GHLMCPHttpServer {
   }
 
   /**
-   * Create a new MCP server instance for a specific user
+   * Create a new MCP server instance and tools for a specific user
    */
-  private createMCPServerForUser(ghlClient: GHLApiClient): Server {
+  private createMCPServerForUser(ghlClient: GHLApiClient): { server: Server, tools: any } {
     // Create a new MCP server instance
     const userServer = new Server(
       {
@@ -244,7 +224,7 @@ class GHLMCPHttpServer {
 
     // Setup MCP handlers for the user server
     userServer.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
+        return {
         tools: [
           ...contactTools.getToolDefinitions(),
           ...conversationTools.getToolDefinitions(),
@@ -318,138 +298,30 @@ class GHLMCPHttpServer {
       }
     });
 
-    return userServer;
+    return {
+      server: userServer,
+      tools: {
+        contactTools,
+        conversationTools,
+        blogTools,
+        opportunityTools,
+        calendarTools,
+        emailTools,
+        locationTools,
+        emailISVTools,
+        socialMediaTools,
+        mediaTools,
+        objectTools,
+        associationTools,
+        customFieldV2Tools,
+        workflowTools,
+        surveyTools,
+        storeTools,
+        productsTools
+      }
+    };
   }
 
-  /**
-   * Setup MCP request handlers
-   */
-  private setupMCPHandlers(): void {
-    // Handle list tools requests
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      console.log('[GHL MCP HTTP] Listing available tools...');
-      
-      try {
-        const contactToolDefinitions = this.contactTools.getToolDefinitions();
-        const conversationToolDefinitions = this.conversationTools.getToolDefinitions();
-        const blogToolDefinitions = this.blogTools.getToolDefinitions();
-        const opportunityToolDefinitions = this.opportunityTools.getToolDefinitions();
-        const calendarToolDefinitions = this.calendarTools.getToolDefinitions();
-        const emailToolDefinitions = this.emailTools.getToolDefinitions();
-        const locationToolDefinitions = this.locationTools.getToolDefinitions();
-        const emailISVToolDefinitions = this.emailISVTools.getToolDefinitions();
-        const socialMediaToolDefinitions = this.socialMediaTools.getTools();
-        const mediaToolDefinitions = this.mediaTools.getToolDefinitions();
-        const objectToolDefinitions = this.objectTools.getToolDefinitions();
-        const associationToolDefinitions = this.associationTools.getTools();
-        const customFieldV2ToolDefinitions = this.customFieldV2Tools.getTools();
-        const workflowToolDefinitions = this.workflowTools.getTools();
-        const surveyToolDefinitions = this.surveyTools.getTools();
-        const storeToolDefinitions = this.storeTools.getTools();
-        const productsToolDefinitions = this.productsTools.getTools();
-        
-        const allTools = [
-          ...contactToolDefinitions,
-          ...conversationToolDefinitions,
-          ...blogToolDefinitions,
-          ...opportunityToolDefinitions,
-          ...calendarToolDefinitions,
-          ...emailToolDefinitions,
-          ...locationToolDefinitions,
-          ...emailISVToolDefinitions,
-          ...socialMediaToolDefinitions,
-          ...mediaToolDefinitions,
-          ...objectToolDefinitions,
-          ...associationToolDefinitions,
-          ...customFieldV2ToolDefinitions,
-          ...workflowToolDefinitions,
-          ...surveyToolDefinitions,
-          ...storeToolDefinitions,
-          ...productsToolDefinitions
-        ];
-        
-        console.log(`[GHL MCP HTTP] Registered ${allTools.length} tools total`);
-        
-        return {
-          tools: allTools
-        };
-      } catch (error) {
-        console.error('[GHL MCP HTTP] Error listing tools:', error);
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Failed to list tools: ${error}`
-        );
-      }
-    });
-
-    // Handle tool execution requests
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-      
-      console.log(`[GHL MCP HTTP] Executing tool: ${name}`);
-
-      try {
-        let result: any;
-
-        // Route to appropriate tool handler
-        if (this.isContactTool(name)) {
-          result = await this.contactTools.executeTool(name, args || {});
-        } else if (this.isConversationTool(name)) {
-          result = await this.conversationTools.executeTool(name, args || {});
-        } else if (this.isBlogTool(name)) {
-          result = await this.blogTools.executeTool(name, args || {});
-        } else if (this.isOpportunityTool(name)) {
-          result = await this.opportunityTools.executeTool(name, args || {});
-        } else if (this.isCalendarTool(name)) {
-          result = await this.calendarTools.executeTool(name, args || {});
-        } else if (this.isEmailTool(name)) {
-          result = await this.emailTools.executeTool(name, args || {});
-        } else if (this.isLocationTool(name)) {
-          result = await this.locationTools.executeTool(name, args || {});
-        } else if (this.isEmailISVTool(name)) {
-          result = await this.emailISVTools.executeTool(name, args || {});
-        } else if (this.isSocialMediaTool(name)) {
-          result = await this.socialMediaTools.executeTool(name, args || {});
-        } else if (this.isMediaTool(name)) {
-          result = await this.mediaTools.executeTool(name, args || {});
-        } else if (this.isObjectTool(name)) {
-          result = await this.objectTools.executeTool(name, args || {});
-        } else if (this.isAssociationTool(name)) {
-          result = await this.associationTools.executeAssociationTool(name, args || {});
-        } else if (this.isCustomFieldV2Tool(name)) {
-          result = await this.customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
-        } else if (this.isWorkflowTool(name)) {
-          result = await this.workflowTools.executeWorkflowTool(name, args || {});
-        } else if (this.isSurveyTool(name)) {
-          result = await this.surveyTools.executeSurveyTool(name, args || {});
-        } else if (this.isStoreTool(name)) {
-          result = await this.storeTools.executeStoreTool(name, args || {});
-        } else if (this.isProductsTool(name)) {
-          result = await this.productsTools.executeProductsTool(name, args || {});
-        } else {
-          throw new Error(`Unknown tool: ${name}`);
-        }
-        
-        console.log(`[GHL MCP HTTP] Tool ${name} executed successfully`);
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2)
-            }
-          ]
-        };
-      } catch (error) {
-        console.error(`[GHL MCP HTTP] Error executing tool ${name}:`, error);
-        
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Tool execution failed: ${error}`
-        );
-      }
-    });
-  }
 
   /**
    * Setup HTTP routes
@@ -457,38 +329,15 @@ class GHLMCPHttpServer {
   private setupRoutes(): void {
     // Health check endpoint
     this.app.get('/health', async (req, res) => {
-      try {
-        // Test GHL API connection
-        const testResponse = await this.ghlClient.getLocationById(this.ghlClient.getConfig().locationId);
-        
         res.json({ 
           status: 'healthy',
           server: 'ghl-mcp-server',
           version: '1.0.0',
           timestamp: new Date().toISOString(),
           tools: this.getToolsCount(),
-          ghl: {
-            connected: testResponse.success,
-            locationId: this.ghlClient.getConfig().locationId,
-            locationName: testResponse.data?.location?.name || 'Unknown',
-            baseUrl: this.ghlClient.getConfig().baseUrl
-          }
-        });
-      } catch (error) {
-        res.json({ 
-          status: 'unhealthy',
-          server: 'ghl-mcp-server',
-          version: '1.0.0',
-          timestamp: new Date().toISOString(),
-          tools: this.getToolsCount(),
-          ghl: {
-            connected: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            locationId: this.ghlClient.getConfig().locationId,
-            baseUrl: this.ghlClient.getConfig().baseUrl
-          }
-        });
-      }
+        authentication: 'per-user via Authorization header',
+        note: 'GHL API connection tested per-user on SSE connection'
+      });
     });
 
     // MCP capabilities endpoint
@@ -506,32 +355,12 @@ class GHLMCPHttpServer {
 
     // Tools listing endpoint
     this.app.get('/tools', async (req, res) => {
-      try {
-        const contactTools = this.contactTools.getToolDefinitions();
-        const conversationTools = this.conversationTools.getToolDefinitions();
-        const blogTools = this.blogTools.getToolDefinitions();
-        const opportunityTools = this.opportunityTools.getToolDefinitions();
-        const calendarTools = this.calendarTools.getToolDefinitions();
-        const emailTools = this.emailTools.getToolDefinitions();
-        const locationTools = this.locationTools.getToolDefinitions();
-        const emailISVTools = this.emailISVTools.getToolDefinitions();
-        const socialMediaTools = this.socialMediaTools.getTools();
-        const mediaTools = this.mediaTools.getToolDefinitions();
-        const objectTools = this.objectTools.getToolDefinitions();
-        const associationTools = this.associationTools.getTools();
-        const customFieldV2Tools = this.customFieldV2Tools.getTools();
-        const workflowTools = this.workflowTools.getTools();
-        const surveyTools = this.surveyTools.getTools();
-        const storeTools = this.storeTools.getTools();
-        const productsTools = this.productsTools.getTools();
-        
         res.json({
-          tools: [...contactTools, ...conversationTools, ...blogTools, ...opportunityTools, ...calendarTools, ...emailTools, ...locationTools, ...emailISVTools, ...socialMediaTools, ...mediaTools, ...objectTools, ...associationTools, ...customFieldV2Tools, ...workflowTools, ...surveyTools, ...storeTools, ...productsTools],
-          count: contactTools.length + conversationTools.length + blogTools.length + opportunityTools.length + calendarTools.length + emailTools.length + locationTools.length + emailISVTools.length + socialMediaTools.length + mediaTools.length + objectTools.length + associationTools.length + customFieldV2Tools.length + workflowTools.length + surveyTools.length + storeTools.length + productsTools.length
-        });
-      } catch (error) {
-        res.status(500).json({ error: 'Failed to list tools' });
-      }
+        message: 'Tools are created per-user on SSE connection',
+        authentication: 'Use Authorization header to connect via SSE',
+        available_tool_count: this.getToolsCount().total,
+        endpoint: 'Connect to /sse with Authorization header to get user-specific tools'
+      });
     });
 
     // SSE endpoint for MCP connection (works for both ChatGPT and ElevenLabs)
@@ -571,22 +400,22 @@ class GHLMCPHttpServer {
 
         // Create SSE transport - always use '/sse' as the path for consistency
         const transport = new SSEServerTransport('/sse', res);
-
+        
         // Connect user's MCP server to transport
-        await userServer.connect(transport);
-
+        await userServer.server.connect(transport);
+        
         console.log(`[${client} MCP] SSE connection established for session: ${sessionId}`);
         console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
-
+        
         // Handle client disconnect
         req.on('close', () => {
           console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
         });
-
+        
       } catch (error) {
         console.error(`[${client} MCP] SSE connection error for session ${sessionId}:`, error);
         console.error(`[${client} MCP] Error details:`, error instanceof Error ? error.stack : error);
-
+        
         // Only send error response if headers haven't been sent yet
         if (!res.headersSent) {
           res.status(500).json({ error: 'Failed to establish SSE connection' });
@@ -642,7 +471,7 @@ class GHLMCPHttpServer {
         // IMMEDIATELY create and connect the transport so it can handle the request
         // The SSEServerTransport needs to set up its own event handlers on the request
         const transport = new SSEServerTransport('/sse', res);
-
+        
         // Add message interceptors for detailed logging BEFORE connecting
         const originalSend = transport.send.bind(transport);
         transport.send = (message: any) => {
@@ -652,8 +481,8 @@ class GHLMCPHttpServer {
 
         // Connect user's MCP server to transport IMMEDIATELY
         // This allows the transport to handle the POST body
-        await userServer.connect(transport);
-
+        await userServer.server.connect(transport);
+        
         console.log(`[${client} MCP] SSE connection established for session: ${sessionId}`);
         console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
 
@@ -674,9 +503,13 @@ class GHLMCPHttpServer {
       }
     };
 
-    // Store active MCP transports - use both session ID and a simple counter for fallback
+    // Store active MCP transports and their associated user servers and tools
     const activeTransports = new Map<string, any>();
     const transportsByIndex = new Map<number, any>();
+    const userServers = new Map<string, Server>(); // sessionId -> user server
+    const serversByIndex = new Map<number, Server>(); // index -> user server
+    const userTools = new Map<string, any>(); // sessionId -> user tools object
+    const toolsByIndex = new Map<number, any>(); // index -> user tools object
     let transportIndex = 0;
     
     // Handle GET for SSE connection establishment
@@ -685,7 +518,7 @@ class GHLMCPHttpServer {
       const isElevenLabs = req.headers['user-agent']?.includes('python-httpx');
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
       const currentIndex = transportIndex++;
-
+      
       console.log(`[${client} MCP] Establishing SSE connection #${currentIndex} for session: ${sessionId}`);
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
 
@@ -713,53 +546,61 @@ class GHLMCPHttpServer {
         // Create a new GHL client instance for this connection
         const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
 
-        // Create a new MCP server instance for this user
-        const userServer = this.createMCPServerForUser(userGHLClient);
+        // Create a new MCP server instance and tools for this user
+        const { server: userServer, tools: userToolInstances } = this.createMCPServerForUser(userGHLClient);
 
         // Create SSE transport and connect user's MCP server
-        const transport = new SSEServerTransport('/sse', res);
-
-        // Add message interceptors for logging
-        const originalSend = transport.send.bind(transport);
-        transport.send = (message: any) => {
-          // Log concisely for tools/list responses to avoid rate limits
-          if (message.result?.tools && Array.isArray(message.result.tools)) {
-            console.log(`[${client} MCP SEND] Session: ${sessionId}`);
-            console.log(`[${client} MCP SEND] tools/list response with ${message.result.tools.length} tools`);
-            // Log just tool names, not full schemas
-            const toolNames = message.result.tools.map((t: any) => t.name).slice(0, 10);
-            console.log(`[${client} MCP SEND] First 10 tools:`, toolNames.join(', '));
-          } else {
-            console.log(`[${client} MCP SEND] Session: ${sessionId}`);
-            console.log(`[${client} MCP SEND] Message:`, JSON.stringify(message, null, 2));
-          }
-          return originalSend(message);
-        };
-
+      const transport = new SSEServerTransport('/sse', res);
+      
+      // Add message interceptors for logging
+      const originalSend = transport.send.bind(transport);
+      transport.send = (message: any) => {
+        // Log concisely for tools/list responses to avoid rate limits
+        if (message.result?.tools && Array.isArray(message.result.tools)) {
+          console.log(`[${client} MCP SEND] Session: ${sessionId}`);
+          console.log(`[${client} MCP SEND] tools/list response with ${message.result.tools.length} tools`);
+          // Log just tool names, not full schemas
+          const toolNames = message.result.tools.map((t: any) => t.name).slice(0, 10);
+          console.log(`[${client} MCP SEND] First 10 tools:`, toolNames.join(', '));
+        } else {
+          console.log(`[${client} MCP SEND] Session: ${sessionId}`);
+          console.log(`[${client} MCP SEND] Message:`, JSON.stringify(message, null, 2));
+        }
+        return originalSend(message);
+      };
+      
         // Connect user's MCP server to transport
         await userServer.connect(transport);
-
-        // Store the transport multiple ways for robust lookup
-        activeTransports.set(sessionId.toString(), transport);
-        transportsByIndex.set(currentIndex, transport);
-        // Also store by IP for ElevenLabs (they might use same IP for GET/POST)
+      
+        // Store the transport, server, and tools multiple ways for robust lookup
+      activeTransports.set(sessionId.toString(), transport);
+      transportsByIndex.set(currentIndex, transport);
+        userServers.set(sessionId.toString(), userServer);
+        serversByIndex.set(currentIndex, userServer);
+        userTools.set(sessionId.toString(), userToolInstances);
+        toolsByIndex.set(currentIndex, userToolInstances);
+      // Also store by IP for ElevenLabs (they might use same IP for GET/POST)
+      if (req.ip) {
+        activeTransports.set(`ip:${req.ip}`, transport);
+      }
+      
+      console.log(`[${client} MCP] SSE connection established for session: ${sessionId}, index: ${currentIndex}`);
+      console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
+      console.log(`[${client} MCP] Active transports: ${activeTransports.size}`);
+      
+      // Clean up on disconnect
+      req.on('close', () => {
+        console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
+        activeTransports.delete(sessionId.toString());
+        transportsByIndex.delete(currentIndex);
+          userServers.delete(sessionId.toString());
+          serversByIndex.delete(currentIndex);
+          userTools.delete(sessionId.toString());
+          toolsByIndex.delete(currentIndex);
         if (req.ip) {
-          activeTransports.set(`ip:${req.ip}`, transport);
+          activeTransports.delete(`ip:${req.ip}`);
         }
-
-        console.log(`[${client} MCP] SSE connection established for session: ${sessionId}, index: ${currentIndex}`);
-        console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
-        console.log(`[${client} MCP] Active transports: ${activeTransports.size}`);
-
-        // Clean up on disconnect
-        req.on('close', () => {
-          console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
-          activeTransports.delete(sessionId.toString());
-          transportsByIndex.delete(currentIndex);
-          if (req.ip) {
-            activeTransports.delete(`ip:${req.ip}`);
-          }
-        });
+      });
       } catch (error) {
         console.error(`[${client} MCP] SSE connection error for session ${sessionId}:`, error);
         console.error(`[${client} MCP] Error details:`, error instanceof Error ? error.stack : error);
@@ -777,7 +618,7 @@ class GHLMCPHttpServer {
       const sessionId = req.query.sessionId || 'unknown';
       const isElevenLabs = req.headers['user-agent']?.includes('python-httpx');
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
-
+      
       console.log(`[${client} MCP] POST message received for session: ${sessionId}`);
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       // Log request concisely
@@ -814,78 +655,58 @@ class GHLMCPHttpServer {
         }
         
         if (transport) {
-          // The transport should handle the message internally
-          // Since we can't directly send to the server, we'll send a manual response for now
-          if (req.body.method === 'initialize') {
-            // Use the client's requested protocol version if we support it
-            const clientVersion = req.body.params?.protocolVersion || '2024-11-05';
-            const supportedVersions = ['2024-11-05', '2025-03-26'];
-            const protocolVersion = supportedVersions.includes(clientVersion) ? clientVersion : '2024-11-05';
-            
-            const response = {
-              jsonrpc: '2.0',
-              id: req.body.id,
-              result: {
-                protocolVersion: protocolVersion,
-                capabilities: {
-                  tools: {}
-                },
-                serverInfo: {
-                  name: 'ghl-mcp-server',
-                  version: '1.0.0'
-                }
+          // Find the user's MCP server
+          let userServer = userServers.get(sessionId.toString());
+
+          // If not found by session ID, try by IP or index
+          if (!userServer && req.ip) {
+            // Try to find the server by IP (if we stored it by IP)
+            // For now, we'll look for the most recent server as fallback
+            if (serversByIndex.size > 0) {
+              const lastIndex = Math.max(...Array.from(serversByIndex.keys()));
+              userServer = serversByIndex.get(lastIndex);
+              if (userServer) {
+                console.log(`[${client} MCP] Using most recent user server (index: ${lastIndex})`);
               }
-            };
-            // Send response through SSE
-            transport.send(response);
-            console.log(`[${client} MCP] Sent initialize response with protocol version: ${protocolVersion}`);
-          } else if (req.body.method === 'tools/list') {
-            const tools = this.getAllToolDefinitions();
-            const response = {
-              jsonrpc: '2.0',
-              id: req.body.id,
-              result: {
-                tools: tools
-              }
-            };
-            transport.send(response);
-            console.log(`[${client} MCP] Sent tools/list response with ${tools.length} tools`);
-          } else if (req.body.method === 'tools/call') {
-            // Handle tool execution
-            const { name, arguments: args } = req.body.params || {};
-            console.log(`[${client} MCP] Tool call requested: ${name}`);
-            console.log(`[${client} MCP] Tool arguments:`, JSON.stringify(args, null, 2));
-            
+            }
+          }
+
+          // Find the user's tools
+          let userToolsObj = userTools.get(sessionId.toString());
+
+          // If not found by session ID, try by index
+          if (!userToolsObj && serversByIndex.size > 0) {
+            const lastIndex = Math.max(...Array.from(serversByIndex.keys()));
+            userToolsObj = toolsByIndex.get(lastIndex);
+          }
+
+          if (userServer && userToolsObj) {
+            // Route the message to the user's MCP server
             try {
-              // Execute the tool using the existing handlers
-              const result = await this.executeToolCall(name, args);
-              console.log(`[${client} MCP] Tool execution result:`, JSON.stringify(result, null, 2));
-              const response = {
-                jsonrpc: '2.0',
-                id: req.body.id,
-                result: {
-                  content: [
-                    {
-                      type: 'text',
-                      text: JSON.stringify(result, null, 2)
-                    }
-                  ]
-                }
-              };
-              transport.send(response);
-              console.log(`[${client} MCP] Tool call successful: ${name}`);
+              await this.processMCPMessageForUser(userServer, userToolsObj, req.body, transport);
             } catch (error) {
+              console.error(`[${client} MCP] Error processing message:`, error);
               const errorResponse = {
                 jsonrpc: '2.0',
                 id: req.body.id,
                 error: {
                   code: -32603,
-                  message: error instanceof Error ? error.message : 'Tool execution failed'
+                  message: 'Message processing failed'
                 }
               };
               transport.send(errorResponse);
-              console.error(`[${client} MCP] Tool call failed: ${name}`, error);
             }
+          } else {
+            console.error(`[${client} MCP] No user server found for session: ${sessionId}`);
+            const errorResponse = {
+              jsonrpc: '2.0',
+              id: req.body.id,
+              error: {
+                code: -32603,
+                message: 'No active session found'
+              }
+            };
+            transport.send(errorResponse);
           }
         } else {
           console.error(`[${client} MCP] No transport found for session: ${sessionId}`);
@@ -903,7 +724,7 @@ class GHLMCPHttpServer {
       const sessionId = req.query.sessionId || 'unknown';
       const client = 'ElevenLabs';
       const currentIndex = transportIndex++;
-
+      
       console.log(`[${client} MCP] Establishing SSE connection #${currentIndex} for session: ${sessionId}`);
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       
@@ -955,7 +776,7 @@ class GHLMCPHttpServer {
     this.app.post('/elevenlabs', express.json(), async (req, res) => {
       const sessionId = req.query.sessionId || 'unknown';
       const client = 'ElevenLabs';
-
+      
       console.log(`[${client} MCP] POST message received for session: ${sessionId}`);
       console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       // Log request concisely
@@ -992,75 +813,58 @@ class GHLMCPHttpServer {
         }
         
         if (transport) {
-          if (req.body.method === 'initialize') {
-            // Use the client's requested protocol version if we support it
-            const clientVersion = req.body.params?.protocolVersion || '2024-11-05';
-            const supportedVersions = ['2024-11-05', '2025-03-26'];
-            const protocolVersion = supportedVersions.includes(clientVersion) ? clientVersion : '2024-11-05';
-            
-            const response = {
-              jsonrpc: '2.0',
-              id: req.body.id,
-              result: {
-                protocolVersion: protocolVersion,
-                capabilities: {
-                  tools: {}
-                },
-                serverInfo: {
-                  name: 'ghl-mcp-server',
-                  version: '1.0.0'
-                }
+          // Find the user's MCP server
+          let userServer = userServers.get(sessionId.toString());
+
+          // If not found by session ID, try by IP or index
+          if (!userServer && req.ip) {
+            // Try to find the server by IP (if we stored it by IP)
+            // For now, we'll look for the most recent server as fallback
+            if (serversByIndex.size > 0) {
+              const lastIndex = Math.max(...Array.from(serversByIndex.keys()));
+              userServer = serversByIndex.get(lastIndex);
+              if (userServer) {
+                console.log(`[${client} MCP] Using most recent user server (index: ${lastIndex})`);
               }
-            };
-            transport.send(response);
-            console.log(`[${client} MCP] Sent initialize response with protocol version: ${protocolVersion}`);
-          } else if (req.body.method === 'tools/list') {
-            const tools = this.getAllToolDefinitions();
-            const response = {
-              jsonrpc: '2.0',
-              id: req.body.id,
-              result: {
-                tools: tools
-              }
-            };
-            transport.send(response);
-            console.log(`[${client} MCP] Sent tools/list response with ${tools.length} tools`);
-          } else if (req.body.method === 'tools/call') {
-            // Handle tool execution
-            const { name, arguments: args } = req.body.params || {};
-            console.log(`[${client} MCP] Tool call requested: ${name}`);
-            console.log(`[${client} MCP] Tool arguments:`, JSON.stringify(args, null, 2));
-            
+            }
+          }
+
+          // Find the user's tools
+          let userToolsObj = userTools.get(sessionId.toString());
+
+          // If not found by session ID, try by index
+          if (!userToolsObj && serversByIndex.size > 0) {
+            const lastIndex = Math.max(...Array.from(serversByIndex.keys()));
+            userToolsObj = toolsByIndex.get(lastIndex);
+          }
+
+          if (userServer && userToolsObj) {
+            // Route the message to the user's MCP server
             try {
-              // Execute the tool using the existing handlers
-              const result = await this.executeToolCall(name, args);
-              console.log(`[${client} MCP] Tool execution result:`, JSON.stringify(result, null, 2));
-              const response = {
-                jsonrpc: '2.0',
-                id: req.body.id,
-                result: {
-                  content: [
-                    {
-                      type: 'text',
-                      text: JSON.stringify(result, null, 2)
-                    }
-                  ]
-                }
-              };
-              transport.send(response);
-              console.log(`[${client} MCP] Tool call successful: ${name}`);
+              await this.processMCPMessageForUser(userServer, userToolsObj, req.body, transport);
             } catch (error) {
+              console.error(`[${client} MCP] Error processing message:`, error);
               const errorResponse = {
                 jsonrpc: '2.0',
                 id: req.body.id,
                 error: {
                   code: -32603,
-                  message: error instanceof Error ? error.message : 'Tool execution failed'
+                  message: 'Message processing failed'
                 }
               };
               transport.send(errorResponse);
-              console.error(`[${client} MCP] Tool call failed: ${name}`, error);
             }
+          } else {
+            console.error(`[${client} MCP] No user server found for session: ${sessionId}`);
+              const errorResponse = {
+                jsonrpc: '2.0',
+                id: req.body.id,
+                error: {
+                  code: -32603,
+                message: 'No active session found'
+                }
+              };
+              transport.send(errorResponse);
           }
         } else {
           console.error(`[${client} MCP] No transport found for session: ${sessionId}`);
@@ -1124,30 +928,18 @@ class GHLMCPHttpServer {
       }
     });
 
-    // Webhook handler for GHL contact updates
+    // NOTE: Webhook functionality disabled - requires per-user authentication
+    // Webhooks would need Authorization header to work with per-user setup
+    /*
     this.app.post('/webhook/update-contact', async (req, res) => {
-      try {
-        const { contactId, customFields, tags } = req.body;
-        console.log(`[Contact Update Webhook] Updating contact ${contactId}`);
-        
-        const updateData: any = {};
-        if (customFields) updateData.customFields = customFields;
-        if (tags) updateData.tags = tags;
-        
-        const result = await this.contactTools.executeTool('update_contact', {
-          contactId: contactId,
-          ...updateData
-        });
-        
-        console.log(`[Contact Update Webhook] Success:`, result);
-        res.json({ success: true, result: result });
-      } catch (error) {
-        console.error(`[Contact Update Webhook] Error:`, error);
-        res.status(500).json({ error: error instanceof Error ? error.message : 'Update failed' });
-      }
+      // Webhook functionality would need to extract user credentials from headers
+      // and create per-user tools to work properly
+      res.status(501).json({ error: 'Webhook functionality temporarily disabled - use per-user SSE connections' });
     });
+    */
 
-    // Webhook handlers for GHL verification workflow
+    // NOTE: Webhook handlers disabled - require per-user authentication
+    /*
     this.app.post('/webhook/code-sent', async (req, res) => {
       const { contactId, code, email, phone, method } = req.body;
       const recipient = email || phone || 'unknown';
@@ -1177,35 +969,14 @@ class GHLMCPHttpServer {
         reason: reason
       });
     });
+    */
 
-    // Debug endpoint for calendar testing
+    // NOTE: Debug endpoint disabled - requires per-user authentication
+    /*
     this.app.get('/debug/test-calendar/:calendarId', async (req, res) => {
-      try {
-        const calendarId = req.params.calendarId;
-        console.log(`[DEBUG] Testing calendar access: ${calendarId}`);
-        
-        // Use existing calendar tools to test access
-        // Test free slots functionality  
-        const testResult = await this.calendarTools.executeTool('get_free_slots', {
-          calendarId: calendarId,
-          startDate: '2025-09-25',
-          endDate: '2025-09-25',
-          timezone: 'Asia/Singapore'
-        });
-        
-        res.json({
-          success: true,
-          calendarId: calendarId,
-          testResult: testResult
-        });
-      } catch (error: any) {
-        console.error(`[DEBUG] Calendar test failed:`, error.message);
-        res.status(500).json({
-          error: error.message,
-          details: error.stack
-        });
-      }
+      res.status(501).json({ error: 'Debug endpoint disabled - use per-user SSE connections with Authorization header' });
     });
+    */
 
     // Root endpoint with server info
     this.app.get('/', (req, res) => {
@@ -1230,211 +1001,190 @@ class GHLMCPHttpServer {
    * Execute a tool call
    */
   private async executeToolCall(name: string, args: any) {
-    // Route to appropriate tool handler based on tool name
-    if (this.isContactTool(name)) {
-      return await this.contactTools.executeTool(name, args || {});
-    } else if (this.isConversationTool(name)) {
-      return await this.conversationTools.executeTool(name, args || {});
-    } else if (this.isBlogTool(name)) {
-      return await this.blogTools.executeTool(name, args || {});
-    } else if (this.isOpportunityTool(name)) {
-      return await this.opportunityTools.executeTool(name, args || {});
-    } else if (this.isCalendarTool(name)) {
-      return await this.calendarTools.executeTool(name, args || {});
-    } else if (this.isEmailTool(name)) {
-      return await this.emailTools.executeTool(name, args || {});
-    } else if (this.isLocationTool(name)) {
-      return await this.locationTools.executeTool(name, args || {});
-    } else if (this.isEmailISVTool(name)) {
-      return await this.emailISVTools.executeTool(name, args || {});
-    } else if (this.isSocialMediaTool(name)) {
-      return await this.socialMediaTools.executeTool(name, args || {});
-    } else if (this.isMediaTool(name)) {
-      return await this.mediaTools.executeTool(name, args || {});
-    } else if (this.isObjectTool(name)) {
-      return await this.objectTools.executeTool(name, args || {});
-    } else if (this.isAssociationTool(name)) {
-      return await this.associationTools.executeAssociationTool(name, args || {});
-    } else if (this.isCustomFieldV2Tool(name)) {
-      return await this.customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
-    } else if (this.isWorkflowTool(name)) {
-      return await this.workflowTools.executeWorkflowTool(name, args || {});
-    } else if (this.isSurveyTool(name)) {
-      return await this.surveyTools.executeSurveyTool(name, args || {});
-    } else if (this.isStoreTool(name)) {
-      return await this.storeTools.executeStoreTool(name, args || {});
-    } else if (this.isProductsTool(name)) {
-      return await this.productsTools.executeProductsTool(name, args || {});
-    } else {
-      throw new Error(`Unknown tool: ${name}`);
-    }
+    // NOTE: This method is deprecated since tool execution is now handled per-user
+    // Tool execution is handled in createMCPServerForUser() for each connection
+    console.warn(`[GHL MCP] executeToolCall() called for ${name} but tools are now per-user`);
+    throw new Error(`Tool execution not available - use per-user connections via SSE`);
   }
 
   /**
-   * Get all tool definitions for ElevenLabs
+   * Process MCP message for a specific user server
    */
-  private getAllToolDefinitions() {
-    const contactTools = this.contactTools.getToolDefinitions();
-    const conversationTools = this.conversationTools.getToolDefinitions();
-    const blogTools = this.blogTools.getToolDefinitions();
-    const opportunityTools = this.opportunityTools.getToolDefinitions();
-    const calendarTools = this.calendarTools.getToolDefinitions();
-    const emailTools = this.emailTools.getToolDefinitions();
-    const locationTools = this.locationTools.getToolDefinitions();
-    const emailISVTools = this.emailISVTools.getToolDefinitions();
-    const socialMediaTools = this.socialMediaTools.getTools();
-    const mediaTools = this.mediaTools.getToolDefinitions();
-    const objectTools = this.objectTools.getToolDefinitions();
-    const associationTools = this.associationTools.getTools();
-    const customFieldV2Tools = this.customFieldV2Tools.getTools();
-    const workflowTools = this.workflowTools.getTools();
-    const surveyTools = this.surveyTools.getTools();
-    const storeTools = this.storeTools.getTools();
-    const productsTools = this.productsTools.getTools();
-    
-    return [
-      ...contactTools,
-      ...conversationTools,
-      ...blogTools,
-      ...opportunityTools,
-      ...calendarTools,
-      ...emailTools,
-      ...locationTools,
-      ...emailISVTools,
-      ...socialMediaTools,
-      ...mediaTools,
-      ...objectTools,
-      ...associationTools,
-      ...customFieldV2Tools,
-      ...workflowTools,
-      ...surveyTools,
-      ...storeTools,
-      ...productsTools
-    ];
-  }
+  private async processMCPMessageForUser(userServer: Server, userTools: any, message: any, transport: any) {
+    if (message.method === 'initialize') {
+      // Use the client's requested protocol version if we support it
+      const clientVersion = message.params?.protocolVersion || '2024-11-05';
+      const supportedVersions = ['2024-11-05', '2025-03-26'];
+      const protocolVersion = supportedVersions.includes(clientVersion) ? clientVersion : '2024-11-05';
 
-  /**
-   * Handle tool call for ElevenLabs
-   */
-  private async handleElevenLabsToolCall(message: any, res: express.Response) {
-    try {
-      const { name, arguments: args } = message.params;
-      console.log(`[ElevenLabs MCP] Executing tool: ${name}`);
-
-      let result: any;
-
-      // Route to appropriate tool handler (same logic as main server)
-      if (this.isContactTool(name)) {
-        result = await this.contactTools.executeTool(name, args || {});
-      } else if (this.isConversationTool(name)) {
-        result = await this.conversationTools.executeTool(name, args || {});
-      } else if (this.isBlogTool(name)) {
-        result = await this.blogTools.executeTool(name, args || {});
-      } else if (this.isOpportunityTool(name)) {
-        result = await this.opportunityTools.executeTool(name, args || {});
-      } else if (this.isCalendarTool(name)) {
-        result = await this.calendarTools.executeTool(name, args || {});
-      } else if (this.isEmailTool(name)) {
-        result = await this.emailTools.executeTool(name, args || {});
-      } else if (this.isLocationTool(name)) {
-        result = await this.locationTools.executeTool(name, args || {});
-      } else if (this.isEmailISVTool(name)) {
-        result = await this.emailISVTools.executeTool(name, args || {});
-      } else if (this.isSocialMediaTool(name)) {
-        result = await this.socialMediaTools.executeTool(name, args || {});
-      } else if (this.isMediaTool(name)) {
-        result = await this.mediaTools.executeTool(name, args || {});
-      } else if (this.isObjectTool(name)) {
-        result = await this.objectTools.executeTool(name, args || {});
-      } else if (this.isAssociationTool(name)) {
-        result = await this.associationTools.executeAssociationTool(name, args || {});
-      } else if (this.isCustomFieldV2Tool(name)) {
-        result = await this.customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
-      } else if (this.isWorkflowTool(name)) {
-        result = await this.workflowTools.executeWorkflowTool(name, args || {});
-      } else if (this.isSurveyTool(name)) {
-        result = await this.surveyTools.executeSurveyTool(name, args || {});
-      } else if (this.isStoreTool(name)) {
-        result = await this.storeTools.executeStoreTool(name, args || {});
-      } else if (this.isProductsTool(name)) {
-        result = await this.productsTools.executeProductsTool(name, args || {});
-      } else {
-        throw new Error(`Unknown tool: ${name}`);
-      }
-
-      // Send success response
       const response = {
         jsonrpc: '2.0',
         id: message.id,
         result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2)
-            }
-          ]
+          protocolVersion: protocolVersion,
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: 'ghl-mcp-server',
+            version: '1.0.0'
+          }
         }
       };
+      transport.send(response);
+      console.log(`[MCP] Sent initialize response with protocol version: ${protocolVersion}`);
+    } else {
+      // For other messages, we need to handle them through the user's server
+      // Since the transport is already connected to the user server, we can try to process it
+      // For now, manually handle tools/list and tools/call
+      // Route to the handlers that were set up in createMCPServerForUser
+      if (message.method === 'tools/list') {
+        try {
+          // Get tools from the user's tool instances directly
+          const tools = [
+            ...userTools.contactTools.getToolDefinitions(),
+            ...userTools.conversationTools.getToolDefinitions(),
+            ...userTools.blogTools.getToolDefinitions(),
+            ...userTools.opportunityTools.getToolDefinitions(),
+            ...userTools.calendarTools.getToolDefinitions(),
+            ...userTools.emailTools.getToolDefinitions(),
+            ...userTools.locationTools.getToolDefinitions(),
+            ...userTools.emailISVTools.getToolDefinitions(),
+            ...userTools.socialMediaTools.getTools(),
+            ...userTools.mediaTools.getToolDefinitions(),
+            ...userTools.objectTools.getToolDefinitions(),
+            ...userTools.associationTools.getTools(),
+            ...userTools.customFieldV2Tools.getTools(),
+            ...userTools.workflowTools.getTools(),
+            ...userTools.surveyTools.getTools(),
+            ...userTools.storeTools.getTools(),
+            ...userTools.productsTools.getTools()
+          ];
 
-      res.write(`data: ${JSON.stringify(response)}\n\n`);
-      console.log(`[ElevenLabs MCP] Tool ${name} executed successfully`);
+          transport.send({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: { tools }
+          });
+        } catch (error) {
+          console.error('[MCP] Error getting tools list:', error);
+          const errorResponse = {
+            jsonrpc: '2.0',
+            id: message.id,
+            error: {
+              code: -32603,
+              message: 'Failed to get tools list'
+            }
+          };
+          transport.send(errorResponse);
+        }
+      } else if (message.method === 'tools/call') {
+        try {
+          // Route tool calls to the appropriate tool instance
+          const { name, arguments: args = {} } = message.params || {};
+      let result: any;
 
+      if (this.isContactTool(name)) {
+            result = await userTools.contactTools.executeTool(name, args);
+      } else if (this.isConversationTool(name)) {
+            result = await userTools.conversationTools.executeTool(name, args);
+      } else if (this.isBlogTool(name)) {
+            result = await userTools.blogTools.executeTool(name, args);
+      } else if (this.isOpportunityTool(name)) {
+            result = await userTools.opportunityTools.executeTool(name, args);
+      } else if (this.isCalendarTool(name)) {
+            result = await userTools.calendarTools.executeTool(name, args);
+      } else if (this.isEmailTool(name)) {
+            result = await userTools.emailTools.executeTool(name, args);
+      } else if (this.isLocationTool(name)) {
+            result = await userTools.locationTools.executeTool(name, args);
+      } else if (this.isEmailISVTool(name)) {
+            result = await userTools.emailISVTools.executeTool(name, args);
+      } else if (this.isSocialMediaTool(name)) {
+            result = await userTools.socialMediaTools.executeTool(name, args);
+      } else if (this.isMediaTool(name)) {
+            result = await userTools.mediaTools.executeTool(name, args);
+      } else if (this.isObjectTool(name)) {
+            result = await userTools.objectTools.executeTool(name, args);
+      } else if (this.isAssociationTool(name)) {
+            result = await userTools.associationTools.executeAssociationTool(name, args);
+      } else if (this.isCustomFieldV2Tool(name)) {
+            result = await userTools.customFieldV2Tools.executeCustomFieldV2Tool(name, args);
+      } else if (this.isWorkflowTool(name)) {
+            result = await userTools.workflowTools.executeWorkflowTool(name, args);
+      } else if (this.isSurveyTool(name)) {
+            result = await userTools.surveyTools.executeSurveyTool(name, args);
+      } else if (this.isStoreTool(name)) {
+            result = await userTools.storeTools.executeStoreTool(name, args);
+      } else if (this.isProductsTool(name)) {
+            result = await userTools.productsTools.executeProductsTool(name, args);
+      } else {
+        throw new Error(`Unknown tool: ${name}`);
+      }
+
+          transport.send({
+        jsonrpc: '2.0',
+        id: message.id,
+        result: {
+              content: [{
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+              }]
+            }
+          });
     } catch (error) {
-      console.error(`[ElevenLabs MCP] Error executing tool:`, error);
-      
-      // Send error response
+          console.error('[MCP] Error calling tool:', error);
       const errorResponse = {
         jsonrpc: '2.0',
         id: message.id,
         error: {
           code: -32603,
-          message: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+              message: error instanceof Error ? error.message : 'Tool execution failed'
+            }
+          };
+          transport.send(errorResponse);
         }
-      };
-
-      res.write(`data: ${JSON.stringify(errorResponse)}\n\n`);
+      } else {
+        // For unsupported methods
+        const errorResponse = {
+          jsonrpc: '2.0',
+          id: message.id,
+          error: {
+            code: -32000,
+            message: `Method ${message.method} not supported`
+          }
+        };
+        transport.send(errorResponse);
+      }
     }
   }
+
+
 
   /**
    * Get tools count summary
    */
   private getToolsCount() {
+    // Static tool counts since tools are now created per-user
     return {
-      contact: this.contactTools.getToolDefinitions().length,
-      conversation: this.conversationTools.getToolDefinitions().length,
-      blog: this.blogTools.getToolDefinitions().length,
-      opportunity: this.opportunityTools.getToolDefinitions().length,
-      calendar: this.calendarTools.getToolDefinitions().length,
-      email: this.emailTools.getToolDefinitions().length,
-      location: this.locationTools.getToolDefinitions().length,
-      emailISV: this.emailISVTools.getToolDefinitions().length,
-      socialMedia: this.socialMediaTools.getTools().length,
-      media: this.mediaTools.getToolDefinitions().length,
-      objects: this.objectTools.getToolDefinitions().length,
-      associations: this.associationTools.getTools().length,
-      customFieldsV2: this.customFieldV2Tools.getTools().length,
-      workflows: this.workflowTools.getTools().length,
-      surveys: this.surveyTools.getTools().length,
-      store: this.storeTools.getTools().length,
-      products: this.productsTools.getTools().length,
-      total: this.contactTools.getToolDefinitions().length + 
-             this.conversationTools.getToolDefinitions().length + 
-             this.blogTools.getToolDefinitions().length +
-             this.opportunityTools.getToolDefinitions().length +
-             this.calendarTools.getToolDefinitions().length +
-             this.emailTools.getToolDefinitions().length +
-             this.locationTools.getToolDefinitions().length +
-             this.emailISVTools.getToolDefinitions().length +
-             this.socialMediaTools.getTools().length +
-             this.mediaTools.getToolDefinitions().length +
-             this.objectTools.getToolDefinitions().length +
-             this.associationTools.getTools().length +
-             this.customFieldV2Tools.getTools().length +
-             this.workflowTools.getTools().length +
-             this.surveyTools.getTools().length +
-             this.storeTools.getTools().length +
-             this.productsTools.getTools().length
+      contact: 42,      // contacts, conversations, tasks, notes, OTP, etc.
+      conversation: 12, // send SMS/email, get conversations, etc.
+      blog: 5,          // blog posts, sites, authors, categories
+      opportunity: 9,   // search, create, update opportunities
+      calendar: 20,     // events, appointments, slots, etc.
+      email: 3,         // email templates
+      location: 17,     // location management, custom fields, etc.
+      emailISV: 1,      // email verification
+      socialMedia: 10,  // posts, accounts, scheduling
+      media: 3,         // upload, list, delete media
+      objects: 4,       // custom objects CRUD
+      associations: 5,  // object relationships
+      customFieldsV2: 4, // custom fields management
+      workflows: 1,     // workflow listing
+      surveys: 2,       // surveys and submissions
+      store: 15,        // shipping, products, etc.
+      products: 14,     // product management
+      total: 167        // sum of all above
     };
   }
 
@@ -1659,19 +1409,11 @@ class GHLMCPHttpServer {
 
   /**
    * Test GHL API connection
+   * NOTE: Deprecated - GHL connections are now tested per-user
    */
   private async testGHLConnection(): Promise<void> {
-    try {
-      console.log('[GHL MCP HTTP] Testing GHL API connection...');
-      
-      const result = await this.ghlClient.testConnection();
-      
-      console.log('[GHL MCP HTTP] ✅ GHL API connection successful');
-      console.log(`[GHL MCP HTTP] Connected to location: ${result.data?.locationId}`);
-    } catch (error) {
-      console.error('[GHL MCP HTTP] ❌ GHL API connection failed:', error);
-      throw new Error(`Failed to connect to GHL API: ${error}`);
-    }
+    console.warn('[GHL MCP HTTP] testGHLConnection() called but connections are now tested per-user');
+    throw new Error('Global GHL connection testing is deprecated. Use per-user connections.');
   }
 
   /**
@@ -1682,7 +1424,7 @@ class GHLMCPHttpServer {
     console.log('=========================================');
     
     try {
-      // Test GHL API connection
+      // NOTE: No longer testing global GHL connection - connections are tested per-user
       // await this.testGHLConnection();
       
       // Start HTTP server
