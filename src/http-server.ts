@@ -7,11 +7,11 @@ import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { 
+import {
   CallToolRequestSchema,
   ErrorCode,
   ListToolsRequestSchema,
-  McpError 
+  McpError
 } from '@modelcontextprotocol/sdk/types.js';
 import * as dotenv from 'dotenv';
 
@@ -119,7 +119,7 @@ class GHLMCPHttpServer {
     this.app.use(cors({
       origin: '*',
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-GHL-API-Key', 'X-GHL-Location-ID', 'X-GHL-Base-URL'],
       credentials: false
     }));
 
@@ -160,6 +160,135 @@ class GHLMCPHttpServer {
     console.log(`[GHL MCP HTTP] Location ID: ${config.locationId}`);
 
     return new GHLApiClient(config);
+  }
+
+  /**
+   * Create a GHL API client instance for a specific user
+   */
+  private createGHLClientForUser(apiKey: string, locationId: string, baseUrl?: string): GHLApiClient {
+    const config: GHLConfig = {
+      accessToken: apiKey,
+      baseUrl: baseUrl || 'https://services.leadconnectorhq.com',
+      version: '2021-07-28',
+      locationId: locationId
+    };
+
+    return new GHLApiClient(config);
+  }
+
+  /**
+   * Create a new MCP server instance for a specific user
+   */
+  private createMCPServerForUser(ghlClient: GHLApiClient): Server {
+    // Create a new MCP server instance
+    const userServer = new Server(
+      {
+        name: 'ghl-mcp-server',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+
+    // Initialize tools with the user's GHL client
+    const contactTools = new ContactTools(ghlClient);
+    const conversationTools = new ConversationTools(ghlClient);
+    const blogTools = new BlogTools(ghlClient);
+    const opportunityTools = new OpportunityTools(ghlClient);
+    const calendarTools = new CalendarTools(ghlClient);
+    const emailTools = new EmailTools(ghlClient);
+    const locationTools = new LocationTools(ghlClient);
+    const emailISVTools = new EmailISVTools(ghlClient);
+    const socialMediaTools = new SocialMediaTools(ghlClient);
+    const mediaTools = new MediaTools(ghlClient);
+    const objectTools = new ObjectTools(ghlClient);
+    const associationTools = new AssociationTools(ghlClient);
+    const customFieldV2Tools = new CustomFieldV2Tools(ghlClient);
+    const workflowTools = new WorkflowTools(ghlClient);
+    const surveyTools = new SurveyTools(ghlClient);
+    const storeTools = new StoreTools(ghlClient);
+    const productsTools = new ProductsTools(ghlClient);
+
+    // Setup MCP handlers for the user server
+    userServer.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          ...contactTools.getToolDefinitions(),
+          ...conversationTools.getToolDefinitions(),
+          ...blogTools.getToolDefinitions(),
+          ...opportunityTools.getToolDefinitions(),
+          ...calendarTools.getToolDefinitions(),
+          ...emailTools.getToolDefinitions(),
+          ...locationTools.getToolDefinitions(),
+          ...emailISVTools.getToolDefinitions(),
+          ...socialMediaTools.getTools(),
+          ...mediaTools.getToolDefinitions(),
+          ...objectTools.getToolDefinitions(),
+          ...associationTools.getTools(),
+          ...customFieldV2Tools.getTools(),
+          ...workflowTools.getTools(),
+          ...surveyTools.getTools(),
+          ...storeTools.getTools(),
+          ...productsTools.getTools(),
+        ],
+      };
+    });
+
+    userServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args = {} } = request.params;
+
+      try {
+        // Route to appropriate tool handler
+        if (this.isContactTool(name)) {
+          return await contactTools.executeTool(name, args || {});
+        } else if (this.isConversationTool(name)) {
+          return await conversationTools.executeTool(name, args || {});
+        } else if (this.isBlogTool(name)) {
+          return await blogTools.executeTool(name, args || {});
+        } else if (this.isOpportunityTool(name)) {
+          return await opportunityTools.executeTool(name, args || {});
+        } else if (this.isCalendarTool(name)) {
+          return await calendarTools.executeTool(name, args || {});
+        } else if (this.isEmailTool(name)) {
+          return await emailTools.executeTool(name, args || {});
+        } else if (this.isLocationTool(name)) {
+          return await locationTools.executeTool(name, args || {});
+        } else if (this.isEmailISVTool(name)) {
+          return await emailISVTools.executeTool(name, args || {});
+        } else if (this.isSocialMediaTool(name)) {
+          return await socialMediaTools.executeTool(name, args || {});
+        } else if (this.isMediaTool(name)) {
+          return await mediaTools.executeTool(name, args || {});
+        } else if (this.isObjectTool(name)) {
+          return await objectTools.executeTool(name, args || {});
+        } else if (this.isAssociationTool(name)) {
+          return await associationTools.executeAssociationTool(name, args || {});
+        } else if (this.isCustomFieldV2Tool(name)) {
+          return await customFieldV2Tools.executeCustomFieldV2Tool(name, args || {});
+        } else if (this.isWorkflowTool(name)) {
+          return await workflowTools.executeWorkflowTool(name, args || {});
+        } else if (this.isSurveyTool(name)) {
+          return await surveyTools.executeSurveyTool(name, args || {});
+        } else if (this.isStoreTool(name)) {
+          return await storeTools.executeStoreTool(name, args || {});
+        } else if (this.isProductsTool(name)) {
+          return await productsTools.executeProductsTool(name, args || {});
+        }
+
+        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+      } catch (error) {
+        console.error(`[MCP] Tool execution error for ${name}:`, error);
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    });
+
+    return userServer;
   }
 
   /**
@@ -381,26 +510,56 @@ class GHLMCPHttpServer {
       const isElevenLabs = req.url?.includes('/elevenlabs') || req.headers['user-agent']?.includes('python-httpx');
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
       console.log(`[${client} MCP] New SSE connection from: ${req.ip}, sessionId: ${sessionId}, method: ${req.method}, url: ${req.url}`);
-      
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
+
       try {
+        // Extract GHL credentials from headers for per-user authentication
+        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
+        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
+        
+        if (!ghlApiKey) {
+          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+          }
+          return;
+        }
+
+        if (!ghlLocationId) {
+          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
+          }
+          return;
+        }
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+
+        // Create a new GHL client instance for this connection
+        const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
+
+        // Create a new MCP server instance for this user
+        const userServer = this.createMCPServerForUser(userGHLClient);
+
         // Create SSE transport - always use '/sse' as the path for consistency
         const transport = new SSEServerTransport('/sse', res);
-        
-        // Connect MCP server to transport
-        await this.server.connect(transport);
-        
+
+        // Connect user's MCP server to transport
+        await userServer.connect(transport);
+
         console.log(`[${client} MCP] SSE connection established for session: ${sessionId}`);
         console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
-        
+
         // Handle client disconnect
         req.on('close', () => {
           console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
         });
-        
+
       } catch (error) {
         console.error(`[${client} MCP] SSE connection error for session ${sessionId}:`, error);
         console.error(`[${client} MCP] Error details:`, error instanceof Error ? error.stack : error);
-        
+
         // Only send error response if headers haven't been sent yet
         if (!res.headersSent) {
           res.status(500).json({ error: 'Failed to establish SSE connection' });
@@ -424,12 +583,42 @@ class GHLMCPHttpServer {
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
 
       console.log(`[${client} MCP] New SSE connection from: ${req.ip}, sessionId: ${sessionId}, method: ${req.method}, url: ${req.url}`);
-      
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
+
       try {
+        // Extract GHL credentials from headers for per-user authentication
+        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
+        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
+
+        if (!ghlApiKey) {
+          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+          }
+          return;
+        }
+
+        if (!ghlLocationId) {
+          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
+          }
+          return;
+        }
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+
+        // Create a new GHL client instance for this connection
+        const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
+
+        // Create a new MCP server instance for this user
+        const userServer = this.createMCPServerForUser(userGHLClient);
+
         // IMMEDIATELY create and connect the transport so it can handle the request
         // The SSEServerTransport needs to set up its own event handlers on the request
         const transport = new SSEServerTransport('/sse', res);
-        
+
         // Add message interceptors for detailed logging BEFORE connecting
         const originalSend = transport.send.bind(transport);
         transport.send = (message: any) => {
@@ -437,10 +626,10 @@ class GHLMCPHttpServer {
           return originalSend(message);
         };
 
-        // Connect MCP server to transport IMMEDIATELY
+        // Connect user's MCP server to transport IMMEDIATELY
         // This allows the transport to handle the POST body
-        await this.server.connect(transport);
-        
+        await userServer.connect(transport);
+
         console.log(`[${client} MCP] SSE connection established for session: ${sessionId}`);
         console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
 
@@ -472,53 +661,94 @@ class GHLMCPHttpServer {
       const isElevenLabs = req.headers['user-agent']?.includes('python-httpx');
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
       const currentIndex = transportIndex++;
-      
+
       console.log(`[${client} MCP] Establishing SSE connection #${currentIndex} for session: ${sessionId}`);
-      
-      // Create SSE transport and connect MCP server
-      const transport = new SSEServerTransport('/sse', res);
-      
-      // Add message interceptors for logging
-      const originalSend = transport.send.bind(transport);
-      transport.send = (message: any) => {
-        // Log concisely for tools/list responses to avoid rate limits
-        if (message.result?.tools && Array.isArray(message.result.tools)) {
-          console.log(`[${client} MCP SEND] Session: ${sessionId}`);
-          console.log(`[${client} MCP SEND] tools/list response with ${message.result.tools.length} tools`);
-          // Log just tool names, not full schemas
-          const toolNames = message.result.tools.map((t: any) => t.name).slice(0, 10);
-          console.log(`[${client} MCP SEND] First 10 tools:`, toolNames.join(', '));
-        } else {
-          console.log(`[${client} MCP SEND] Session: ${sessionId}`);
-          console.log(`[${client} MCP SEND] Message:`, JSON.stringify(message, null, 2));
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
+
+      try {
+        // Extract GHL credentials from headers for per-user authentication
+        const ghlApiKey = req.headers['x-ghl-api-key'] as string;
+        const ghlLocationId = req.headers['x-ghl-location-id'] as string;
+        const ghlBaseUrl = (req.headers['x-ghl-base-url'] as string) || 'https://services.leadconnectorhq.com';
+
+        if (!ghlApiKey) {
+          console.error(`[${client} MCP] Missing X-GHL-API-Key header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-API-Key header is required' });
+          }
+          return;
         }
-        return originalSend(message);
-      };
-      
-      // Connect MCP server to transport
-      await this.server.connect(transport);
-      
-      // Store the transport multiple ways for robust lookup
-      activeTransports.set(sessionId.toString(), transport);
-      transportsByIndex.set(currentIndex, transport);
-      // Also store by IP for ElevenLabs (they might use same IP for GET/POST)
-      if (req.ip) {
-        activeTransports.set(`ip:${req.ip}`, transport);
-      }
-      
-      console.log(`[${client} MCP] SSE connection established for session: ${sessionId}, index: ${currentIndex}`);
-      console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
-      console.log(`[${client} MCP] Active transports: ${activeTransports.size}`);
-      
-      // Clean up on disconnect
-      req.on('close', () => {
-        console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
-        activeTransports.delete(sessionId.toString());
-        transportsByIndex.delete(currentIndex);
+
+        if (!ghlLocationId) {
+          console.error(`[${client} MCP] Missing X-GHL-Location-ID header for session: ${sessionId}`);
+          if (!res.headersSent) {
+            res.status(400).json({ error: 'X-GHL-Location-ID header is required' });
+          }
+          return;
+        }
+
+        console.log(`[${client} MCP] Creating GHL client for user session: ${sessionId}`);
+
+        // Create a new GHL client instance for this connection
+        const userGHLClient = this.createGHLClientForUser(ghlApiKey, ghlLocationId, ghlBaseUrl);
+
+        // Create a new MCP server instance for this user
+        const userServer = this.createMCPServerForUser(userGHLClient);
+
+        // Create SSE transport and connect user's MCP server
+        const transport = new SSEServerTransport('/sse', res);
+
+        // Add message interceptors for logging
+        const originalSend = transport.send.bind(transport);
+        transport.send = (message: any) => {
+          // Log concisely for tools/list responses to avoid rate limits
+          if (message.result?.tools && Array.isArray(message.result.tools)) {
+            console.log(`[${client} MCP SEND] Session: ${sessionId}`);
+            console.log(`[${client} MCP SEND] tools/list response with ${message.result.tools.length} tools`);
+            // Log just tool names, not full schemas
+            const toolNames = message.result.tools.map((t: any) => t.name).slice(0, 10);
+            console.log(`[${client} MCP SEND] First 10 tools:`, toolNames.join(', '));
+          } else {
+            console.log(`[${client} MCP SEND] Session: ${sessionId}`);
+            console.log(`[${client} MCP SEND] Message:`, JSON.stringify(message, null, 2));
+          }
+          return originalSend(message);
+        };
+
+        // Connect user's MCP server to transport
+        await userServer.connect(transport);
+
+        // Store the transport multiple ways for robust lookup
+        activeTransports.set(sessionId.toString(), transport);
+        transportsByIndex.set(currentIndex, transport);
+        // Also store by IP for ElevenLabs (they might use same IP for GET/POST)
         if (req.ip) {
-          activeTransports.delete(`ip:${req.ip}`);
+          activeTransports.set(`ip:${req.ip}`, transport);
         }
-      });
+
+        console.log(`[${client} MCP] SSE connection established for session: ${sessionId}, index: ${currentIndex}`);
+        console.log(`[${client} MCP] Available tools: ${this.getToolsCount().total}`);
+        console.log(`[${client} MCP] Active transports: ${activeTransports.size}`);
+
+        // Clean up on disconnect
+        req.on('close', () => {
+          console.log(`[${client} MCP] SSE connection closed for session: ${sessionId}`);
+          activeTransports.delete(sessionId.toString());
+          transportsByIndex.delete(currentIndex);
+          if (req.ip) {
+            activeTransports.delete(`ip:${req.ip}`);
+          }
+        });
+      } catch (error) {
+        console.error(`[${client} MCP] SSE connection error for session ${sessionId}:`, error);
+        console.error(`[${client} MCP] Error details:`, error instanceof Error ? error.stack : error);
+
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to establish SSE connection' });
+        } else {
+          res.end();
+        }
+      }
     });
     
     // Handle POST for MCP messages
@@ -526,8 +756,9 @@ class GHLMCPHttpServer {
       const sessionId = req.query.sessionId || 'unknown';
       const isElevenLabs = req.headers['user-agent']?.includes('python-httpx');
       const client = isElevenLabs ? 'ElevenLabs' : 'Claude/ChatGPT';
-      
+
       console.log(`[${client} MCP] POST message received for session: ${sessionId}`);
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       // Log request concisely
       if (req.body?.method === 'tools/list') {
         console.log(`[${client} MCP] POST body: tools/list request`);
@@ -651,8 +882,9 @@ class GHLMCPHttpServer {
       const sessionId = req.query.sessionId || 'unknown';
       const client = 'ElevenLabs';
       const currentIndex = transportIndex++;
-      
+
       console.log(`[${client} MCP] Establishing SSE connection #${currentIndex} for session: ${sessionId}`);
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       
       // Create SSE transport and connect MCP server
       const transport = new SSEServerTransport('/sse', res);
@@ -702,8 +934,9 @@ class GHLMCPHttpServer {
     this.app.post('/elevenlabs', express.json(), async (req, res) => {
       const sessionId = req.query.sessionId || 'unknown';
       const client = 'ElevenLabs';
-      
+
       console.log(`[${client} MCP] POST message received for session: ${sessionId}`);
+      console.log(`[${client} MCP] Headers:`, JSON.stringify(req.headers, null, 2));
       // Log request concisely
       if (req.body?.method === 'tools/list') {
         console.log(`[${client} MCP] POST body: tools/list request`);
