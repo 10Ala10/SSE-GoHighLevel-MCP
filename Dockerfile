@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Expose the port
-EXPOSE 8000
+# EXPOSE 8000
 
 # Set environment to production
 ENV NODE_ENV=production
