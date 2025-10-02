@@ -26,20 +26,11 @@ import {
   GHLGetMessagesResponse,
   GHLCreateConversationRequest,
   GHLCreateConversationResponse,
-  GHLUpdateConversationRequest,
-  // Blog types
-  GHLBlogPost,
-  GHLCreateBlogPostRequest,
+  GHLUpdateConversationRequest, GHLCreateBlogPostRequest,
   GHLUpdateBlogPostRequest,
   GHLBlogPostCreateResponse,
   GHLBlogPostUpdateResponse,
-  GHLBlogPostListResponse,
-  GHLBlogAuthor,
-  GHLBlogAuthorsResponse,
-  GHLBlogCategory,
-  GHLBlogCategoriesResponse,
-  GHLBlogSite,
-  GHLBlogSitesResponse,
+  GHLBlogPostListResponse, GHLBlogAuthorsResponse, GHLBlogCategoriesResponse, GHLBlogSitesResponse,
   GHLUrlSlugCheckResponse,
   GHLGetBlogPostsRequest,
   GHLGetBlogAuthorsRequest,
@@ -114,8 +105,6 @@ import {
   GHLBulkTagsResponse,
   GHLBulkBusinessResponse,
   GHLFollowersResponse,
-  GHLCampaign,
-  GHLWorkflow,
   // Additional Conversation/Message types
   GHLEmailMessage,
   GHLProcessInboundMessageRequest,
@@ -163,10 +152,7 @@ import {
   GHLGetTwitterAccountsResponse,
   GHLAttachTwitterAccountRequest,
   GHLGetTikTokAccountsResponse,
-  GHLAttachTikTokAccountRequest,
-  GHLCSVImport,
-  GHLSocialPost,
-  GHLSocialAccount,
+  GHLAttachTikTokAccountRequest, GHLSocialAccount,
   GHLValidateGroupSlugResponse,
   GHLGroupSuccessResponse,
   GHLGroupStatusUpdateRequest,
@@ -207,11 +193,7 @@ import {
   GHLUpdateObjectRecordRequest,
   GHLObjectRecordDeleteResponse,
   GHLSearchObjectRecordsRequest,
-  GHLSearchObjectRecordsResponse,
-  // Associations API types
-  GHLAssociation,
-  GHLRelation,
-  GHLCreateAssociationRequest,
+  GHLSearchObjectRecordsResponse, GHLCreateAssociationRequest,
   GHLUpdateAssociationRequest,
   GHLCreateRelationRequest,
   GHLGetAssociationsRequest,
@@ -222,11 +204,7 @@ import {
   GHLAssociationResponse,
   GHLDeleteAssociationResponse,
   GHLGetAssociationsResponse,
-  GHLGetRelationsResponse,
-  // Custom Fields V2 API types
-  GHLV2CustomField,
-  GHLV2CustomFieldFolder,
-  GHLV2CreateCustomFieldRequest,
+  GHLGetRelationsResponse, GHLV2CreateCustomFieldRequest,
   GHLV2UpdateCustomFieldRequest,
   GHLV2CreateCustomFieldFolderRequest,
   GHLV2UpdateCustomFieldFolderRequest,
@@ -281,25 +259,17 @@ import {
   GHLCreateProductRequest,
   GHLCreateProductResponse,
   GHLUpdateProductRequest,
-  GHLUpdateProductResponse,
-  GHLGetProductRequest,
-  GHLGetProductResponse,
+  GHLUpdateProductResponse, GHLGetProductResponse,
   GHLListProductsRequest,
-  GHLListProductsResponse,
-  GHLDeleteProductRequest,
-  GHLDeleteProductResponse,
+  GHLListProductsResponse, GHLDeleteProductResponse,
   GHLBulkUpdateRequest,
   GHLBulkUpdateResponse,
   GHLCreatePriceRequest,
   GHLCreatePriceResponse,
   GHLUpdatePriceRequest,
-  GHLUpdatePriceResponse,
-  GHLGetPriceRequest,
-  GHLGetPriceResponse,
+  GHLUpdatePriceResponse, GHLGetPriceResponse,
   GHLListPricesRequest,
-  GHLListPricesResponse,
-  GHLDeletePriceRequest,
-  GHLDeletePriceResponse,
+  GHLListPricesResponse, GHLDeletePriceResponse,
   GHLListInventoryRequest,
   GHLListInventoryResponse,
   GHLUpdateInventoryRequest,
@@ -311,9 +281,7 @@ import {
   GHLCreateProductCollectionRequest,
   GHLCreateCollectionResponse,
   GHLUpdateProductCollectionRequest,
-  GHLUpdateProductCollectionResponse,
-  GHLGetProductCollectionRequest,
-  GHLDefaultCollectionResponse,
+  GHLUpdateProductCollectionResponse, GHLDefaultCollectionResponse,
   GHLListProductCollectionsRequest,
   GHLListCollectionResponse,
   GHLDeleteProductCollectionRequest,
@@ -3376,14 +3344,14 @@ export class GHLApiClient {
 
   /**
    * Get appointment notes
-   * GET /calendars/events/appointments/{appointmentId}/notes
+   * GET /calendars/appointments/{appointmentId}/notes
    */
   async getAppointmentNotes(appointmentId: string, limit = 10, offset = 0): Promise<GHLApiResponse<GHLGetAppointmentNotesResponse>> {
     try {
       const params = { limit, offset };
 
       const response: AxiosResponse<GHLGetAppointmentNotesResponse> = await this.axiosInstance.get(
-        `/calendars/events/appointments/${appointmentId}/notes`,
+        `/calendars/appointments/${appointmentId}/notes`,
         { params }
       );
 
@@ -3395,13 +3363,13 @@ export class GHLApiClient {
 
   /**
    * Create appointment note
-   * POST /calendars/events/appointments/{appointmentId}/notes
+   * POST /calendars/appointments/{appointmentId}/notes
    */
   async createAppointmentNote(appointmentId: string, noteData: GHLCreateAppointmentNoteRequest): Promise<GHLApiResponse<GHLAppointmentNoteResponse>> {
     try {
       const response: AxiosResponse<GHLAppointmentNoteResponse> = await this.axiosInstance.post(
-        `/calendars/events/appointments/${appointmentId}/notes`,
-        noteData
+        `/calendars/appointments/${appointmentId}/notes`,
+        noteData  
       );
 
       return this.wrapResponse(response.data);
@@ -3412,12 +3380,12 @@ export class GHLApiClient {
 
   /**
    * Update appointment note
-   * PUT /calendars/events/appointments/{appointmentId}/notes/{noteId}
+   * PUT /calendars/appointments/{appointmentId}/notes/{noteId}
    */
   async updateAppointmentNote(appointmentId: string, noteId: string, updateData: GHLUpdateAppointmentNoteRequest): Promise<GHLApiResponse<GHLAppointmentNoteResponse>> {
     try {
       const response: AxiosResponse<GHLAppointmentNoteResponse> = await this.axiosInstance.put(
-        `/calendars/events/appointments/${appointmentId}/notes/${noteId}`,
+        `/calendars/appointments/${appointmentId}/notes/${noteId}`,
         updateData
       );
 
@@ -3429,12 +3397,12 @@ export class GHLApiClient {
 
   /**
    * Delete appointment note
-   * DELETE /calendars/events/appointments/{appointmentId}/notes/{noteId}
+   * DELETE /calendars/appointments/{appointmentId}/notes/{noteId}
    */
   async deleteAppointmentNote(appointmentId: string, noteId: string): Promise<GHLApiResponse<GHLDeleteAppointmentNoteResponse>> {
     try {
       const response: AxiosResponse<GHLDeleteAppointmentNoteResponse> = await this.axiosInstance.delete(
-        `/calendars/events/appointments/${appointmentId}/notes/${noteId}`
+        `/calendars/appointments/${appointmentId}/notes/${noteId}`
       );
 
       return this.wrapResponse(response.data);
