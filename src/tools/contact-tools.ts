@@ -11,7 +11,6 @@ import {
   MCPUpdateContactParams,
   MCPAddContactTagsParams,
   MCPRemoveContactTagsParams,
-  GHLCustomField,
   // Task Management
   MCPGetContactTasksParams,
   MCPCreateContactTaskParams,
@@ -697,14 +696,32 @@ export class ContactTools {
   }
 
   private async searchContacts(params: MCPSearchContactsParams): Promise<GHLSearchContactsResponse> {
+    const filters: any = {
+      group: 'AND',
+      filters: []
+    };
+
+    if (params.email) {
+      filters.filters.push({
+        field: 'email',
+        operator: 'eq', // Assuming exact match
+        value: params.email
+      });
+    }
+
+    if (params.phone) {
+      filters.filters.push({
+        field: 'phone',
+        operator: 'eq', // Assuming exact match
+        value: params.phone
+      });
+    }
+
     const response = await this.ghlClient.searchContacts({
-        locationId: this.ghlClient.getConfig().locationId,
+      locationId: this.ghlClient.getConfig().locationId,
       query: params.query,
-      limit: params.limit,
-      filters: {
-        ...(params.email && { email: params.email }),
-        ...(params.phone && { phone: params.phone })
-      }
+      pageLimit: params.limit || 25,
+      ...(filters.filters.length > 0 && { filters })
     });
 
     if (!response.success) {

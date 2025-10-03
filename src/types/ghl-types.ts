@@ -85,24 +85,28 @@ export interface GHLDndSetting {
 export interface GHLSearchContactsRequest {
   locationId: string;
   query?: string;
-  startAfterId?: string;
-  startAfter?: number;
-  limit?: number;
+  page?: number;
+  pageLimit?: number;
+  searchAfter?: [number, string]; // Array format: [timestamp, id]
   filters?: {
-    email?: string;
-    phone?: string;
-    tags?: string[];
-    dateAdded?: {
-      gte?: string;
-      lte?: string;
-    };
+    group?: 'AND' | 'OR';
+    filters?: Array<{
+      field: string;
+      operator: string;
+      value: any;
+    } | GHLSearchContactsRequest['filters']>;
   };
+  sort?: Array<{
+    field: string;
+    direction: 'asc' | 'desc';
+  }>;
 }
 
 // Search Contacts Response
 export interface GHLSearchContactsResponse {
   contacts: GHLContact[];
   total: number;
+  searchAfter?: [number, string]; // For cursor-based pagination
 }
 
 // Create Contact Request
@@ -6687,3 +6691,38 @@ export interface CreateInvoiceResponseDto extends DefaultInvoiceResponseDto {}
 export interface UpdateInvoiceResponseDto extends DefaultInvoiceResponseDto {}
 export interface DeleteInvoiceResponseDto extends DefaultInvoiceResponseDto {}
 export interface VoidInvoiceResponseDto extends DefaultInvoiceResponseDto {}
+
+// Inactivity Detection Types
+export interface MCPDetectContactsInactivityParams {
+  inactivityDays: number;
+}
+
+export interface MCPDetectOpportunitiesInactivityParams {
+  inactivityDays: number;
+}
+
+export interface GHLInactiveContact extends GHLContact {
+  daysInactive: number;
+  lastActivityDate?: string;
+}
+
+export interface GHLInactiveOpportunity extends GHLOpportunity {
+  daysInactive: number;
+  lastActivityDate?: string;
+}
+
+export interface GHLDetectContactsInactivityResponse {
+  inactiveContacts: GHLInactiveContact[];
+  totalContactsChecked: number;
+  inactiveCount: number;
+  errors: string[];
+  inactivityThresholdDays: number;
+}
+
+export interface GHLDetectOpportunitiesInactivityResponse {
+  inactiveOpportunities: GHLInactiveOpportunity[];
+  totalOpportunitiesChecked: number;
+  inactiveCount: number;
+  errors: string[];
+  inactivityThresholdDays: number;
+}

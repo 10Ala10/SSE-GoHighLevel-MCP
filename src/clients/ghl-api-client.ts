@@ -532,7 +532,7 @@ export class GHLApiClient {
       // Start with just locationId and pageLimit as per API requirements
       const payload: any = {
         locationId: searchParams.locationId || this.config.locationId,
-        pageLimit: searchParams.limit || 25
+        pageLimit: searchParams.pageLimit || 100
       };
 
       // Only add optional parameters if they have valid values
@@ -540,43 +540,17 @@ export class GHLApiClient {
         payload.query = searchParams.query.trim();
       }
 
-      if (searchParams.startAfterId && searchParams.startAfterId.trim()) {
-        payload.startAfterId = searchParams.startAfterId.trim();
+      if (searchParams.page && typeof searchParams.page === 'number') {
+        payload.page = searchParams.page;
       }
 
-      if (searchParams.startAfter && typeof searchParams.startAfter === 'number') {
-        payload.startAfter = searchParams.startAfter;
+      if (searchParams.searchAfter && Array.isArray(searchParams.searchAfter) && searchParams.searchAfter.length === 2) {
+        payload.searchAfter = searchParams.searchAfter;
       }
 
-      // Only add filters if we have valid filter values
+      // Add filters if provided (new structure from API docs)
       if (searchParams.filters) {
-        const filters: any = {};
-        let hasFilters = false;
-
-        if (searchParams.filters.email && searchParams.filters.email.trim()) {
-          filters.email = searchParams.filters.email.trim();
-          hasFilters = true;
-        }
-        
-        if (searchParams.filters.phone && searchParams.filters.phone.trim()) {
-          filters.phone = searchParams.filters.phone.trim();
-          hasFilters = true;
-        }
-
-        if (searchParams.filters.tags && Array.isArray(searchParams.filters.tags) && searchParams.filters.tags.length > 0) {
-          filters.tags = searchParams.filters.tags;
-          hasFilters = true;
-        }
-
-        if (searchParams.filters.dateAdded && typeof searchParams.filters.dateAdded === 'object') {
-          filters.dateAdded = searchParams.filters.dateAdded;
-          hasFilters = true;
-        }
-
-        // Only add filters object if we have actual filters
-        if (hasFilters) {
-          payload.filters = filters;
-        }
+        payload.filters = searchParams.filters;
       }
 
       process.stderr.write(`[GHL API] Search contacts payload: ${JSON.stringify(payload, null, 2)}\n`);

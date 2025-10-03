@@ -5,11 +5,11 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
+import {
   CallToolRequestSchema,
   ErrorCode,
   ListToolsRequestSchema,
-  McpError 
+  McpError
 } from '@modelcontextprotocol/sdk/types.js';
 import * as dotenv from 'dotenv';
 
@@ -24,6 +24,7 @@ import { LocationTools } from './tools/location-tools.js';
 import { EmailISVTools } from './tools/email-isv-tools.js';
 import { SocialMediaTools } from './tools/social-media-tools.js';
 import { MediaTools } from './tools/media-tools.js';
+import { InactivityTools } from './tools/inactivity-tools.js';
 import { ObjectTools } from './tools/object-tools.js';
 import { AssociationTools } from './tools/association-tools.js';
 import { CustomFieldV2Tools } from './tools/custom-field-v2-tools.js';
@@ -54,6 +55,7 @@ class GHLMCPServer {
   private emailISVTools: EmailISVTools;
   private socialMediaTools: SocialMediaTools;
   private mediaTools: MediaTools;
+  private inactivityTools: InactivityTools;
   private objectTools: ObjectTools;
   private associationTools: AssociationTools;
   private customFieldV2Tools: CustomFieldV2Tools;
@@ -92,6 +94,7 @@ class GHLMCPServer {
     this.emailISVTools = new EmailISVTools(this.ghlClient);
     this.socialMediaTools = new SocialMediaTools(this.ghlClient);
     this.mediaTools = new MediaTools(this.ghlClient);
+    this.inactivityTools = new InactivityTools(this.ghlClient);
     this.objectTools = new ObjectTools(this.ghlClient);
     this.associationTools = new AssociationTools(this.ghlClient);
     this.customFieldV2Tools = new CustomFieldV2Tools(this.ghlClient);
@@ -152,6 +155,7 @@ class GHLMCPServer {
         const emailToolDefinitions = this.emailTools.getToolDefinitions();
         const locationToolDefinitions = this.locationTools.getToolDefinitions();
         const emailISVToolDefinitions = this.emailISVTools.getToolDefinitions();
+        const inactivityToolDefinitions = this.inactivityTools.getToolDefinitions();
         const socialMediaToolDefinitions = this.socialMediaTools.getTools();
         const mediaToolDefinitions = this.mediaTools.getToolDefinitions();
         const objectToolDefinitions = this.objectTools.getToolDefinitions();
@@ -173,6 +177,7 @@ class GHLMCPServer {
           ...emailToolDefinitions,
           ...locationToolDefinitions,
           ...emailISVToolDefinitions,
+          ...inactivityToolDefinitions,
           ...socialMediaToolDefinitions,
           ...mediaToolDefinitions,
           ...objectToolDefinitions,
@@ -246,6 +251,8 @@ class GHLMCPServer {
           result = await this.locationTools.executeTool(name, args || {});
         } else if (this.isEmailISVTool(name)) {
           result = await this.emailISVTools.executeTool(name, args || {});
+        } else if (this.isInactivityTool(name)) {
+          result = await this.inactivityTools.executeTool(name, args || {});
         } else if (this.isSocialMediaTool(name)) {
           result = await this.socialMediaTools.executeTool(name, args || {});
         } else if (this.isMediaTool(name)) {
@@ -429,6 +436,16 @@ class GHLMCPServer {
       'verify_email'
     ];
     return emailISVToolNames.includes(toolName);
+  }
+
+  /**
+   * Check if tool name belongs to inactivity tools
+   */
+  private isInactivityTool(toolName: string): boolean {
+    const inactivityToolNames = [
+      'detect_contacts_inactivity', 'detect_opportunities_inactivity'
+    ];
+    return inactivityToolNames.includes(toolName);
   }
 
   /**
@@ -647,6 +664,7 @@ class GHLMCPServer {
       const emailToolCount = this.emailTools.getToolDefinitions().length;
       const locationToolCount = this.locationTools.getToolDefinitions().length;
       const emailISVToolCount = this.emailISVTools.getToolDefinitions().length;
+      const inactivityToolCount = this.inactivityTools.getToolDefinitions().length;
       const socialMediaToolCount = this.socialMediaTools.getTools().length;
       const mediaToolCount = this.mediaTools.getToolDefinitions().length;
       const objectToolCount = this.objectTools.getToolDefinitions().length;
@@ -658,7 +676,7 @@ class GHLMCPServer {
       const productsToolCount = this.productsTools.getTools().length;
       const paymentsToolCount = this.paymentsTools.getTools().length;
       const invoicesToolCount = this.invoicesTools.getTools().length;
-      const totalTools = contactToolCount + conversationToolCount + blogToolCount + opportunityToolCount + calendarToolCount + emailToolCount + locationToolCount + emailISVToolCount + socialMediaToolCount + mediaToolCount + objectToolCount + associationToolCount + customFieldV2ToolCount + workflowToolCount + surveyToolCount + storeToolCount + productsToolCount + paymentsToolCount + invoicesToolCount;
+      const totalTools = contactToolCount + conversationToolCount + blogToolCount + opportunityToolCount + calendarToolCount + emailToolCount + locationToolCount + emailISVToolCount + inactivityToolCount + socialMediaToolCount + mediaToolCount + objectToolCount + associationToolCount + customFieldV2ToolCount + workflowToolCount + surveyToolCount + storeToolCount + productsToolCount + paymentsToolCount + invoicesToolCount;
       
       process.stderr.write(`📋 Available tools: ${totalTools}\n`);
       process.stderr.write('\n');
@@ -745,6 +763,10 @@ class GHLMCPServer {
       process.stderr.write('   • get_location_templates - Get SMS/Email templates\n');
       process.stderr.write('   • delete_location_template - Delete templates\n');
       process.stderr.write('   • get_timezones - Get available timezones\n');
+      process.stderr.write('\n');
+      process.stderr.write('📊 INACTIVITY DETECTION:\n');
+      process.stderr.write('   • detect_contacts_inactivity - Find contacts with no recent activity\n');
+      process.stderr.write('   • detect_opportunities_inactivity - Find opportunities with no recent changes\n');
       process.stderr.write('\n');
       process.stderr.write('✅ EMAIL VERIFICATION:\n');
       process.stderr.write('   • verify_email - Verify email deliverability and risk assessment\n');
