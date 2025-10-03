@@ -226,12 +226,15 @@ export class InactivityTools {
         const searchParams: any = {
           location_id: this.ghlClient.getConfig().locationId,
           limit: 100,
+          getTasks: true,
+          getNotes: true,
+          getCalendarEvents: true,
           ...(pipelineStageId && { pipeline_stage_id: pipelineStageId }),
           ...(startAfterId && { startAfterId }),
           ...(startAfter && { startAfter })
         };
 
-        console.log(`📄 [INACTIVITY] Fetching opportunities page ${pageCount}${pipelineStageId ? ` (stage: ${pipelineStageId})` : ''} (startAfter: ${startAfter}, startAfterId: ${startAfterId || 'none'})`);
+        console.log(`📄 [INACTIVITY] Fetching opportunities page ${pageCount}${pipelineStageId ? ` (stage: ${pipelineStageId})` : ''} with tasks/notes/events (startAfter: ${startAfter}, startAfterId: ${startAfterId || 'none'})`);
 
         const opportunitiesResponse = await this.ghlClient.searchOpportunities(searchParams);
         if (!opportunitiesResponse.success) {
