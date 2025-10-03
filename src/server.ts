@@ -147,6 +147,7 @@ class GHLMCPServer {
       process.stderr.write('[GHL MCP] Listing available tools...\n');
       
       try {
+        const inactivityToolDefinitions = this.inactivityTools.getToolDefinitions();
         const contactToolDefinitions = this.contactTools.getToolDefinitions();
         const conversationToolDefinitions = this.conversationTools.getToolDefinitions();
         const blogToolDefinitions = this.blogTools.getToolDefinitions();
@@ -155,7 +156,6 @@ class GHLMCPServer {
         const emailToolDefinitions = this.emailTools.getToolDefinitions();
         const locationToolDefinitions = this.locationTools.getToolDefinitions();
         const emailISVToolDefinitions = this.emailISVTools.getToolDefinitions();
-        const inactivityToolDefinitions = this.inactivityTools.getToolDefinitions();
         const socialMediaToolDefinitions = this.socialMediaTools.getTools();
         const mediaToolDefinitions = this.mediaTools.getToolDefinitions();
         const objectToolDefinitions = this.objectTools.getToolDefinitions();
@@ -169,6 +169,7 @@ class GHLMCPServer {
         const invoicesToolDefinitions = this.invoicesTools.getTools();
         
         const allTools = [
+          ...inactivityToolDefinitions,
           ...contactToolDefinitions,
           ...conversationToolDefinitions,
           ...blogToolDefinitions,
@@ -177,7 +178,6 @@ class GHLMCPServer {
           ...emailToolDefinitions,
           ...locationToolDefinitions,
           ...emailISVToolDefinitions,
-          ...inactivityToolDefinitions,
           ...socialMediaToolDefinitions,
           ...mediaToolDefinitions,
           ...objectToolDefinitions,
@@ -680,6 +680,10 @@ class GHLMCPServer {
       
       process.stderr.write(`📋 Available tools: ${totalTools}\n`);
       process.stderr.write('\n');
+      process.stderr.write('📊 INACTIVITY DETECTION (2 tools):\n');
+      process.stderr.write('   • detect_contacts_inactivity - Find contacts with no recent activity\n');
+      process.stderr.write('   • detect_opportunities_inactivity - Find opportunities with no recent changes\n');
+      process.stderr.write('\n');
       process.stderr.write('🎯 CONTACT MANAGEMENT (31 tools):\n');
       process.stderr.write('   BASIC: create, search, get, update, delete contacts\n');
       process.stderr.write('   TAGS: add/remove contact tags, bulk tag operations\n');
@@ -763,10 +767,6 @@ class GHLMCPServer {
       process.stderr.write('   • get_location_templates - Get SMS/Email templates\n');
       process.stderr.write('   • delete_location_template - Delete templates\n');
       process.stderr.write('   • get_timezones - Get available timezones\n');
-      process.stderr.write('\n');
-      process.stderr.write('📊 INACTIVITY DETECTION:\n');
-      process.stderr.write('   • detect_contacts_inactivity - Find contacts with no recent activity\n');
-      process.stderr.write('   • detect_opportunities_inactivity - Find opportunities with no recent changes\n');
       process.stderr.write('\n');
       process.stderr.write('✅ EMAIL VERIFICATION:\n');
       process.stderr.write('   • verify_email - Verify email deliverability and risk assessment\n');

@@ -6,14 +6,14 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { GHLApiClient } from '../clients/ghl-api-client.js';
 import {
-    MCPDetectContactsInactivityParams,
-    MCPDetectOpportunitiesInactivityParams,
-    GHLDetectContactsInactivityResponse,
-    GHLDetectOpportunitiesInactivityResponse,
-    GHLInactiveContact,
-    GHLInactiveOpportunity,
-    GHLContact,
-    GHLOpportunity
+  MCPDetectContactsInactivityParams,
+  MCPDetectOpportunitiesInactivityParams,
+  GHLDetectContactsInactivityResponse,
+  GHLDetectOpportunitiesInactivityResponse,
+  GHLInactiveContact,
+  GHLInactiveOpportunity,
+  GHLContact,
+  GHLOpportunity
 } from '../types/ghl-types.js';
 
 /**
@@ -46,7 +46,7 @@ export class InactivityTools {
       },
       {
         name: 'detect_opportunities_inactivity',
-        description: 'Detect opportunities that have had no status or stage changes within a specified number of days.',
+        description: 'Detect opportunities that have had no status or stage changes within a specified number of days. Optionally filter by pipeline stage.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -55,6 +55,11 @@ export class InactivityTools {
               description: 'Number of days to check for inactivity',
               minimum: 1,
               maximum: 365
+            },
+            pipelineStageId: {
+              type: 'string',
+              description: 'Optional pipeline stage ID to filter opportunities by specific stage',
+              default: null
             }
           },
           required: ['inactivityDays']
@@ -83,10 +88,14 @@ export class InactivityTools {
   private async detectContactsInactivity(params: MCPDetectContactsInactivityParams): Promise<GHLDetectContactsInactivityResponse> {
     const { inactivityDays } = params;
 
+    console.log(`🔍 [INACTIVITY] Starting contacts inactivity detection for ${inactivityDays} days`);
+
     // Calculate date range for inactivity check
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - inactivityDays);
+
+    console.log(`📅 [INACTIVITY] Checking contacts inactive since: ${startDate.toISOString()}`);
 
     const inactiveContacts: GHLInactiveContact[] = [];
     let totalContactsChecked = 0;
@@ -96,13 +105,19 @@ export class InactivityTools {
       // Get all contacts with cursor-based pagination (required for > 10,000 records)
       let contacts: GHLContact[] = [];
       let searchAfter: [number, string] | undefined;
+      let pageCount = 0;
+
+      console.log(`📊 [INACTIVITY] Starting contact pagination...`);
 
       while (true) {
+        pageCount++;
         const searchParams: any = {
           locationId: this.ghlClient.getConfig().locationId,
           pageLimit: 100, // Use pageLimit instead of limit
           ...(searchAfter && { searchAfter })
         };
+
+        console.log(`📄 [INACTIVITY] Fetching contacts page ${pageCount} (cursor: ${searchAfter ? searchAfter.join(',') : 'start'})`);
 
         const contactsResponse = await this.ghlClient.searchContacts(searchParams);
         if (!contactsResponse.success) {
@@ -112,8 +127,11 @@ export class InactivityTools {
         const batchContacts = contactsResponse.data?.contacts || [];
         contacts.push(...batchContacts);
 
+        console.log(`📋 [INACTIVITY] Retrieved ${batchContacts.length} contacts (total: ${contacts.length})`);
+
         // Check pagination: if we got fewer contacts than requested or no searchAfter, we're done
         if (batchContacts.length < 100 || !contactsResponse.data?.searchAfter) {
+          console.log(`🏁 [INACTIVITY] Contact pagination complete. Total pages: ${pageCount}, Total contacts: ${contacts.length}`);
           break;
         }
 
@@ -122,12 +140,15 @@ export class InactivityTools {
 
         // Safety check to prevent infinite loops (API limit is much higher with cursor pagination)
         if (contacts.length > 50000) {
+          console.log(`⚠️ [INACTIVITY] Safety limit reached: ${contacts.length} contacts`);
           errors.push('Too many contacts, stopping at 50000');
           break;
         }
       }
 
       // Check each contact for inactivity
+      console.log(`🔍 [INACTIVITY] Checking ${contacts.length} contacts for inactivity...`);
+
       for (const contact of contacts) {
         if (!contact.id) continue;
 
@@ -144,13 +165,24 @@ export class InactivityTools {
             };
             inactiveContacts.push(inactiveContact);
           }
+
+          // Log progress every 100 contacts
+          if (totalContactsChecked % 100 === 0) {
+            console.log(`📈 [INACTIVITY] Checked ${totalContactsChecked}/${contacts.length} contacts. Inactive: ${inactiveContacts.length}`);
+          }
         } catch (error) {
+          console.log(`❌ [INACTIVITY] Error checking contact ${contact.id}: ${error instanceof Error ? error.message : String(error)}`);
           errors.push(`Error checking contact ${contact.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
+
+      console.log(`✅ [INACTIVITY] Contact checking complete. Checked: ${totalContactsChecked}, Inactive: ${inactiveContacts.length}`);
     } catch (error) {
+      console.log(`❌ [INACTIVITY] Error fetching contacts: ${error instanceof Error ? error.message : String(error)}`);
       errors.push(`Error fetching contacts: ${error instanceof Error ? error.message : String(error)}`);
     }
+
+    console.log(`🎯 [INACTIVITY] Contacts detection finished. Inactive: ${inactiveContacts.length}/${totalContactsChecked}, Errors: ${errors.length}`);
 
     return {
       inactiveContacts,
@@ -165,12 +197,16 @@ export class InactivityTools {
    * Detect opportunities inactivity
    */
   private async detectOpportunitiesInactivity(params: MCPDetectOpportunitiesInactivityParams): Promise<GHLDetectOpportunitiesInactivityResponse> {
-    const { inactivityDays } = params;
+    const { inactivityDays, pipelineStageId } = params;
+
+    console.log(`🔍 [INACTIVITY] Starting opportunities inactivity detection for ${inactivityDays} days${pipelineStageId ? ` (stage filter: ${pipelineStageId})` : ''}`);
 
     // Calculate date range for inactivity check
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - inactivityDays);
+
+    console.log(`📅 [INACTIVITY] Checking opportunities inactive since: ${startDate.toISOString()}`);
 
     const inactiveOpportunities: GHLInactiveOpportunity[] = [];
     let totalOpportunitiesChecked = 0;
@@ -179,19 +215,23 @@ export class InactivityTools {
     try {
       // Get all opportunities with pagination
       let opportunities: GHLOpportunity[] = [];
-      let startAfter: number | undefined;
+      let startAfter: string | undefined;
       let startAfterId = '';
+      let pageCount = 0;
+
+      console.log(`📊 [INACTIVITY] Starting opportunity pagination...`);
 
       while (true) {
+        pageCount++;
         const searchParams: any = {
           location_id: this.ghlClient.getConfig().locationId,
           limit: 100,
-          ...(startAfterId && { start_after_id: startAfterId })
+          ...(pipelineStageId && { pipeline_stage_id: pipelineStageId }),
+          ...(startAfterId && { startAfterId }),
+          ...(startAfter && { startAfter })
         };
 
-        if (startAfter !== undefined) {
-          searchParams.start_after = startAfter;
-        }
+        console.log(`📄 [INACTIVITY] Fetching opportunities page ${pageCount}${pipelineStageId ? ` (stage: ${pipelineStageId})` : ''} (startAfter: ${startAfter}, startAfterId: ${startAfterId || 'none'})`);
 
         const opportunitiesResponse = await this.ghlClient.searchOpportunities(searchParams);
         if (!opportunitiesResponse.success) {
@@ -201,25 +241,36 @@ export class InactivityTools {
         const batchOpportunities = opportunitiesResponse.data?.opportunities || [];
         opportunities.push(...batchOpportunities);
 
+        console.log(`📋 [INACTIVITY] Retrieved ${batchOpportunities.length} opportunities (total: ${opportunities.length})`);
+
         // Check pagination
         const meta = opportunitiesResponse.data?.meta;
-        // Check for nextPageUrl or if there's a next page number
-        const hasMorePages = !!meta?.nextPageUrl || (meta?.nextPage && meta.currentPage && meta.nextPage > meta.currentPage);
+        console.log(`📊 [INACTIVITY] Pagination meta:`, JSON.stringify(meta, null, 2));
+
+        // Only check for nextPageUrl - this is the reliable indicator of more pages
+        // The nextPage numbers seem unreliable in the API response
+        const hasMorePages = !!meta?.nextPageUrl;
+        console.log(`🔄 [INACTIVITY] Has more pages: ${hasMorePages} (nextPageUrl: ${meta?.nextPageUrl ? 'present' : 'null'})`);
+
         if (!hasMorePages) {
+          console.log(`🏁 [INACTIVITY] Opportunity pagination complete. Total pages: ${pageCount}, Total opportunities: ${opportunities.length}`);
           break;
         }
 
-        startAfter = meta?.startAfter;
+        startAfter = meta?.startAfter ? String(meta.startAfter) : undefined;
         startAfterId = meta?.startAfterId || '';
 
         // Safety check to prevent infinite loops
         if (opportunities.length > 10000) {
+          console.log(`⚠️ [INACTIVITY] Safety limit reached: ${opportunities.length} opportunities`);
           errors.push('Too many opportunities, stopping at 10000');
           break;
         }
       }
 
       // Check each opportunity for inactivity
+      console.log(`🔍 [INACTIVITY] Checking ${opportunities.length} opportunities for inactivity...`);
+
       for (const opportunity of opportunities) {
         if (!opportunity.id) continue;
 
@@ -258,13 +309,24 @@ export class InactivityTools {
             };
             inactiveOpportunities.push(inactiveOpportunity);
           }
+
+          // Log progress every 100 opportunities
+          if (totalOpportunitiesChecked % 100 === 0) {
+            console.log(`📈 [INACTIVITY] Checked ${totalOpportunitiesChecked}/${opportunities.length} opportunities. Inactive: ${inactiveOpportunities.length}`);
+          }
         } catch (error) {
+          console.log(`❌ [INACTIVITY] Error checking opportunity ${opportunity.id}: ${error instanceof Error ? error.message : String(error)}`);
           errors.push(`Error checking opportunity ${opportunity.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
+
+      console.log(`✅ [INACTIVITY] Opportunity checking complete. Checked: ${totalOpportunitiesChecked}, Inactive: ${inactiveOpportunities.length}`);
     } catch (error) {
+      console.log(`❌ [INACTIVITY] Error fetching opportunities: ${error instanceof Error ? error.message : String(error)}`);
       errors.push(`Error fetching opportunities: ${error instanceof Error ? error.message : String(error)}`);
     }
+
+    console.log(`🎯 [INACTIVITY] Opportunities detection finished. Inactive: ${inactiveOpportunities.length}/${totalOpportunitiesChecked}, Errors: ${errors.length}`);
 
     return {
       inactiveOpportunities,
@@ -279,6 +341,7 @@ export class InactivityTools {
    * Check if a contact has been active within the specified date range
    */
   private async checkContactActivity(contactId: string, startDate: Date): Promise<{ inactive: boolean; lastActivityDate?: Date }> {
+    console.log(`🔍 [INACTIVITY] Checking activity for contact ${contactId} since ${startDate.toISOString()}`);
     let hasRecentActivity = false;
     let lastActivityDate: Date | undefined;
 
@@ -360,13 +423,17 @@ export class InactivityTools {
         }
       }
     } catch (error) {
-      console.error(`Error checking activity for contact ${contactId}:`, error);
+      console.error(`❌ [INACTIVITY] Error checking activity for contact ${contactId}:`, error);
       // Continue with the check - don't throw
     }
 
-    return {
+    const result = {
       inactive: !hasRecentActivity,
       lastActivityDate
     };
+
+    console.log(`📊 [INACTIVITY] Contact ${contactId} activity check result: ${result.inactive ? 'INACTIVE' : 'ACTIVE'} (last activity: ${result.lastActivityDate?.toISOString() || 'never'})`);
+
+    return result;
   }
 }

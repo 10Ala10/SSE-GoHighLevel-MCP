@@ -6699,6 +6699,7 @@ export interface MCPDetectContactsInactivityParams {
 
 export interface MCPDetectOpportunitiesInactivityParams {
   inactivityDays: number;
+  pipelineStageId?: string;
 }
 
 export interface GHLInactiveContact extends GHLContact {

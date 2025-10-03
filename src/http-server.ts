@@ -16,6 +16,7 @@ import {
 import * as dotenv from 'dotenv';
 
 import { GHLApiClient } from './clients/ghl-api-client';
+import { InactivityTools } from './tools/inactivity-tools';
 import { ContactTools } from './tools/contact-tools';
 import { ConversationTools } from './tools/conversation-tools';
 import { BlogTools } from './tools/blog-tools';
@@ -204,6 +205,7 @@ class GHLMCPHttpServer {
     );
 
     // Initialize tools with the user's GHL client
+    const inactivityTools = new InactivityTools(ghlClient);
     const contactTools = new ContactTools(ghlClient);
     const conversationTools = new ConversationTools(ghlClient);
     const blogTools = new BlogTools(ghlClient);
@@ -226,6 +228,7 @@ class GHLMCPHttpServer {
     userServer.setRequestHandler(ListToolsRequestSchema, async () => {
         return {
         tools: [
+          ...inactivityTools.getToolDefinitions(),
           ...contactTools.getToolDefinitions(),
           ...conversationTools.getToolDefinitions(),
           ...blogTools.getToolDefinitions(),
@@ -301,6 +304,7 @@ class GHLMCPHttpServer {
     return {
       server: userServer,
       tools: {
+        inactivityTools,
         contactTools,
         conversationTools,
         blogTools,
@@ -1042,6 +1046,7 @@ class GHLMCPHttpServer {
         try {
           // Get tools from the user's tool instances directly
           const tools = [
+            ...userTools.inactivityTools.getToolDefinitions(),
             ...userTools.contactTools.getToolDefinitions(),
             ...userTools.conversationTools.getToolDefinitions(),
             ...userTools.blogTools.getToolDefinitions(),
@@ -1084,7 +1089,9 @@ class GHLMCPHttpServer {
           const { name, arguments: args = {} } = message.params || {};
       let result: any;
 
-      if (this.isContactTool(name)) {
+      if (this.isInactivityTool(name)) {
+            result = await userTools.inactivityTools.executeTool(name, args);
+      } else if (this.isContactTool(name)) {
             result = await userTools.contactTools.executeTool(name, args);
       } else if (this.isConversationTool(name)) {
             result = await userTools.conversationTools.executeTool(name, args);
@@ -1167,6 +1174,7 @@ class GHLMCPHttpServer {
   private getToolsCount() {
     // Static tool counts since tools are now created per-user
     return {
+      inactivity: 2,    // detect_contacts_inactivity, detect_opportunities_inactivity
       contact: 42,      // contacts, conversations, tasks, notes, OTP, etc.
       conversation: 12, // send SMS/email, get conversations, etc.
       blog: 5,          // blog posts, sites, authors, categories
@@ -1184,7 +1192,7 @@ class GHLMCPHttpServer {
       surveys: 2,       // surveys and submissions
       store: 15,        // shipping, products, etc.
       products: 14,     // product management
-      total: 167        // sum of all above
+      total: 169        // sum of all above
     };
   }
 
@@ -1305,6 +1313,13 @@ class GHLMCPHttpServer {
       'get_timezones'
     ];
     return locationToolNames.includes(toolName);
+  }
+
+  private isInactivityTool(toolName: string): boolean {
+    const inactivityToolNames = [
+      'detect_contacts_inactivity', 'detect_opportunities_inactivity'
+    ];
+    return inactivityToolNames.includes(toolName);
   }
 
   private isEmailISVTool(toolName: string): boolean {
