@@ -213,28 +213,25 @@ export class InactivityTools {
     const errors: string[] = [];
 
     try {
-      // Get all opportunities with pagination
+      // Get all opportunities with page-based pagination
       let opportunities: GHLOpportunity[] = [];
-      let startAfter: string | undefined;
-      let startAfterId = '';
-      let pageCount = 0;
+      let currentPage = 1;
+      let hasMorePages = true;
 
-      console.log(`📊 [INACTIVITY] Starting opportunity pagination...`);
+      console.log(`📊 [INACTIVITY] Starting opportunity pagination (page-based)...`);
 
-      while (true) {
-        pageCount++;
+      while (hasMorePages) {
         const searchParams: any = {
           location_id: this.ghlClient.getConfig().locationId,
+          page: currentPage,
           limit: 100,
           getTasks: true,
           getNotes: true,
           getCalendarEvents: true,
-          ...(pipelineStageId && { pipeline_stage_id: pipelineStageId }),
-          ...(startAfterId && { startAfterId }),
-          ...(startAfter && { startAfter })
+          ...(pipelineStageId && { pipeline_stage_id: pipelineStageId })
         };
 
-        console.log(`📄 [INACTIVITY] Fetching opportunities page ${pageCount}${pipelineStageId ? ` (stage: ${pipelineStageId})` : ''} with tasks/notes/events (startAfter: ${startAfter}, startAfterId: ${startAfterId || 'none'})`);
+        console.log(`📄 [INACTIVITY] Fetching opportunities page ${currentPage}${pipelineStageId ? ` (stage: ${pipelineStageId})` : ''} with tasks/notes/events`);
 
         const opportunitiesResponse = await this.ghlClient.searchOpportunities(searchParams);
         if (!opportunitiesResponse.success) {
@@ -250,18 +247,17 @@ export class InactivityTools {
         const meta = opportunitiesResponse.data?.meta;
         console.log(`📊 [INACTIVITY] Pagination meta:`, JSON.stringify(meta, null, 2));
 
-        // Only check for nextPageUrl - this is the reliable indicator of more pages
-        // The nextPage numbers seem unreliable in the API response
-        const hasMorePages = !!meta?.nextPageUrl;
-        console.log(`🔄 [INACTIVITY] Has more pages: ${hasMorePages} (nextPageUrl: ${meta?.nextPageUrl ? 'present' : 'null'})`);
+        // Stop if we got fewer results than the limit, or if there's no nextPage
+        hasMorePages = batchOpportunities.length === 100 && !!meta?.nextPage && meta.nextPage > currentPage;
+
+        console.log(`🔄 [INACTIVITY] Has more pages: ${hasMorePages} (batch size: ${batchOpportunities.length}, nextPage: ${meta?.nextPage}, currentPage: ${currentPage})`);
 
         if (!hasMorePages) {
-          console.log(`🏁 [INACTIVITY] Opportunity pagination complete. Total pages: ${pageCount}, Total opportunities: ${opportunities.length}`);
+          console.log(`🏁 [INACTIVITY] Opportunity pagination complete. Total pages: ${currentPage}, Total opportunities: ${opportunities.length}`);
           break;
         }
 
-        startAfter = meta?.startAfter ? String(meta.startAfter) : undefined;
-        startAfterId = meta?.startAfterId || '';
+        currentPage++;
 
         // Safety check to prevent infinite loops
         if (opportunities.length > 10000) {
