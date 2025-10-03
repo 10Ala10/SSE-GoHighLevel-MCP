@@ -330,7 +330,10 @@ export class OpportunityTools {
       // Build search parameters with correct API naming (underscores)
       const searchParams: any = {
         location_id: this.ghlClient.getConfig().locationId,
-        limit: params.limit || 20
+        limit: params.limit || 20,
+        getTasks: params.includeTasks !== undefined ? params.includeTasks : true,
+        getNotes: params.includeNotes !== undefined ? params.includeNotes : true,
+        getCalendarEvents: params.includeCalendarEvents !== undefined ? params.includeCalendarEvents : true
       };
 
       // Only add parameters if they have values
