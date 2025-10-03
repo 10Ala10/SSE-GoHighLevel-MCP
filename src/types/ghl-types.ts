@@ -2366,6 +2366,86 @@ export interface GHLPostUser {
   email?: string;
 }
 
+// User Management Types
+export interface GHLUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  permissions?: string[];
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  locationId?: string;
+  companyId?: string;
+}
+
+export interface GHLUserSearchRequest {
+  locationId?: string;
+  query?: string;
+  role?: string;
+  isActive?: boolean;
+  limit?: number;
+  page?: number;
+}
+
+export interface GHLUserSearchResponse {
+  users: GHLUser[];
+  total: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface GHLCreateUserRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  permissions?: string[];
+  locationId?: string;
+}
+
+export interface GHLUpdateUserRequest {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  permissions?: string[];
+  isActive?: boolean;
+}
+
+// MCP Parameter Types for User Tools
+export interface MCPSearchUsersParams {
+  query?: string;
+  role?: string;
+  isActive?: boolean;
+  limit?: number;
+}
+
+export interface MCPCreateUserParams {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  permissions?: string[];
+}
+
+export interface MCPUpdateUserParams {
+  userId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  permissions?: string[];
+  isActive?: boolean;
+}
+
 // Post Approval Interface
 export interface GHLPostApproval {
   approver?: string;

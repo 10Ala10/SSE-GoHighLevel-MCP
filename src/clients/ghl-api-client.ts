@@ -16,6 +16,12 @@ import {
   GHLErrorResponse,
   GHLTask,
   GHLNote,
+  // User types
+  GHLUser,
+  GHLUserSearchRequest,
+  GHLUserSearchResponse,
+  GHLCreateUserRequest,
+  GHLUpdateUserRequest,
   // Conversation types
   GHLConversation,
   GHLMessage,
@@ -6805,6 +6811,153 @@ export class GHLApiClient {
         console.error('[GHL API] Workflow error response:', error.response?.data);
       }
       throw error;
+    }
+  }
+
+  // User Management Methods
+  async searchUsers(searchParams: GHLUserSearchRequest): Promise<GHLApiResponse<GHLUserSearchResponse>> {
+    try {
+      const params: any = {};
+
+      if (searchParams.locationId) {
+        params.locationId = searchParams.locationId;
+      }
+
+      if (searchParams.query && searchParams.query.trim()) {
+        params.query = searchParams.query.trim();
+      }
+
+      if (searchParams.role) {
+        params.role = searchParams.role;
+      }
+
+      if (searchParams.isActive !== undefined) {
+        params.isActive = searchParams.isActive;
+      }
+
+      if (searchParams.limit) {
+        params.limit = searchParams.limit;
+      }
+
+      if (searchParams.page) {
+        params.page = searchParams.page;
+      }
+
+      process.stderr.write(`[GHL API] Search users params: ${JSON.stringify(params, null, 2)}\n`);
+
+      const response: AxiosResponse<GHLUserSearchResponse> = await this.axiosInstance.get(
+        '/users/search',
+        { params }
+      );
+      return this.wrapResponse(response.data);
+    } catch (error) {
+      throw this.handleApiError(error as AxiosError<GHLErrorResponse>);
+    }
+  }
+
+  async getUser(userId: string): Promise<GHLApiResponse<GHLUser>> {
+    try {
+      process.stderr.write(`[GHL API] Get user: ${userId}\n`);
+
+      const response: AxiosResponse<GHLUser> = await this.axiosInstance.get(
+        `/users/${userId}`
+      );
+      return this.wrapResponse(response.data);
+    } catch (error) {
+      throw this.handleApiError(error as AxiosError<GHLErrorResponse>);
+    }
+  }
+
+  async createUser(userData: GHLCreateUserRequest): Promise<GHLApiResponse<GHLUser>> {
+    try {
+      const payload: any = {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email
+      };
+
+      if (userData.phone) {
+        payload.phone = userData.phone;
+      }
+
+      if (userData.role) {
+        payload.role = userData.role;
+      }
+
+      if (userData.permissions && userData.permissions.length > 0) {
+        payload.permissions = userData.permissions;
+      }
+
+      if (userData.locationId) {
+        payload.locationId = userData.locationId;
+      }
+
+      process.stderr.write(`[GHL API] Create user payload: ${JSON.stringify(payload, null, 2)}\n`);
+
+      const response: AxiosResponse<GHLUser> = await this.axiosInstance.post(
+        '/users',
+        payload
+      );
+      return this.wrapResponse(response.data);
+    } catch (error) {
+      throw this.handleApiError(error as AxiosError<GHLErrorResponse>);
+    }
+  }
+
+  async updateUser(userId: string, userData: GHLUpdateUserRequest): Promise<GHLApiResponse<GHLUser>> {
+    try {
+      const payload: any = {};
+
+      if (userData.firstName !== undefined) {
+        payload.firstName = userData.firstName;
+      }
+
+      if (userData.lastName !== undefined) {
+        payload.lastName = userData.lastName;
+      }
+
+      if (userData.email !== undefined) {
+        payload.email = userData.email;
+      }
+
+      if (userData.phone !== undefined) {
+        payload.phone = userData.phone;
+      }
+
+      if (userData.role !== undefined) {
+        payload.role = userData.role;
+      }
+
+      if (userData.permissions !== undefined) {
+        payload.permissions = userData.permissions;
+      }
+
+      if (userData.isActive !== undefined) {
+        payload.isActive = userData.isActive;
+      }
+
+      process.stderr.write(`[GHL API] Update user ${userId} payload: ${JSON.stringify(payload, null, 2)}\n`);
+
+      const response: AxiosResponse<GHLUser> = await this.axiosInstance.put(
+        `/users/${userId}`,
+        payload
+      );
+      return this.wrapResponse(response.data);
+    } catch (error) {
+      throw this.handleApiError(error as AxiosError<GHLErrorResponse>);
+    }
+  }
+
+  async deleteUser(userId: string): Promise<GHLApiResponse<{ success: boolean }>> {
+    try {
+      process.stderr.write(`[GHL API] Delete user: ${userId}\n`);
+
+      const response: AxiosResponse<{ success: boolean }> = await this.axiosInstance.delete(
+        `/users/${userId}`
+      );
+      return this.wrapResponse(response.data);
+    } catch (error) {
+      throw this.handleApiError(error as AxiosError<GHLErrorResponse>);
     }
   }
 } 
